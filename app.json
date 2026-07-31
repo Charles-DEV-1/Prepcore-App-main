@@ -24,7 +24,9 @@
       "groqApiKey": "REPLACE_WITH_GROQ_API_KEY",
       "flutterwavePublicKey": "REPLACE_WITH_FLUTTERWAVE_PUBLIC_KEY",
       "flutterwaveSecretKey": "REPLACE_WITH_FLUTTERWAVE_SECRET_KEY",
-      
+      "eas": {
+        "projectId": "a01eea6f-b0ca-4e9d-b0a8-fbf407118c12"
+      }
     },
     "ios": {
       "supportsTablet": false,
@@ -36,6 +38,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#185FA5"
       }
-    }
+    },
+    "owner": "charles_dev_1"
   }
 }
