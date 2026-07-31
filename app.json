@@ -24,9 +24,7 @@
       "groqApiKey": "REPLACE_WITH_GROQ_API_KEY",
       "flutterwavePublicKey": "REPLACE_WITH_FLUTTERWAVE_PUBLIC_KEY",
       "flutterwaveSecretKey": "REPLACE_WITH_FLUTTERWAVE_SECRET_KEY",
-      "eas": {
-        "projectId": "b5cdf41c-667d-4422-af3f-63d4da218242"
-      }
+      
     },
     "ios": {
       "supportsTablet": false,
