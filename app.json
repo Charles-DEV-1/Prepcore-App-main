@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Prepcore",
+    "slug": "prepcore",
+    "version": "1.0.0",
+    "scheme": "prepcore",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "sdkVersion": "49.0.0",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "extra": {
+      "supabaseUrl": "https://ioakyesaeondeqvbcaua.supabase.co",
+      "supabaseAnonKey": "REPLACE_WITH_SUPABASE_ANON_KEY",
+      "googleClientId": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+      "groqApiKey": "REPLACE_WITH_GROQ_API_KEY",
+      "flutterwavePublicKey": "REPLACE_WITH_FLUTTERWAVE_PUBLIC_KEY",
+      "flutterwaveSecretKey": "REPLACE_WITH_FLUTTERWAVE_SECRET_KEY",
+      "eas": {
+        "projectId": "b5cdf41c-667d-4422-af3f-63d4da218242"
+      }
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.prepcore.app"
+    },
+    "android": {
+      "package": "com.prepcore.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#185FA5"
+      }
+    }
+  }
+}

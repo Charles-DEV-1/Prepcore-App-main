@@ -1,0 +1,257 @@
+ 
+ 
+1. Project Overview
+
+Prepwise is a Nigerian JAMB and WAEC exam prep platform. This document is the complete specification for the mobile app version. The mobile app must match the web platform exactly in functionality, data, and brand identity.
+ 
+ 
+ 
+
+2. Brand Identity — Must Match Exactly
+
+The mobile app must be visually identical to the web platform. Use these exact values everywhere.
+ 
+2.1 Colors
+ 
+2.2 Typography
+ 
+2.3 Logo
+App icon: Blue square (#185FA5) with white P and two progress bars below it. Use the provided SVG file exactly. Export at all required sizes for both Android and iOS.
+In-app logo: Same icon + 'prepwise' wordmark in dark navy. Use in header of auth screens and splash screen.
+Splash screen: Blue (#185FA5) background, white Prepwise logo centered, tagline 'Smart Prep. Higher Scores.' below in light blue.
+ 
+2.4 Components
+Primary button: Blue #185FA5 background, white text, 10px border radius, 44dp minimum height (touch-friendly), full width on mobile screens.
+Ghost button: White background, 1.5px #185FA5 border, blue text, same size.
+Card: White background, 1px #E2E8F0 border, 12px border radius, 16dp padding, subtle shadow elevation 2.
+Answer option: White bg, 1.5px gray border, 10px radius. Selected: blue border + light blue bg. Correct: green border + green bg. Wrong: red border + red bg.
+Input field: 44dp height, 1.5px border, 8px radius, 14dp padding. Focus: blue border. Error: red border.
+Bottom tab bar: White background, 1px top border. Active tab: blue icon + blue label. Inactive: gray.
+Progress bar: 6dp height, light gray track, blue fill, 3px radius.
+Badge/pill: Small rounded pill, 4dp vertical padding, 10dp horizontal padding. Colors match web.
+ 
+
+3. Technical Architecture
+
+3.1 Project Setup
+Install Expo: npx create-expo-app prepwise --template blank-typescript
+Install NativeWind: npm install nativewind tailwindcss — configure tailwind.config.js and babel.config.js
+Install navigation: npm install expo-router — use file-based routing
+Install Supabase: npm install @supabase/supabase-js @react-native-async-storage/async-storage — AsyncStorage replaces localStorage
+Install other deps: npm install zustand @tanstack/react-query react-hook-form zod expo-notifications expo-secure-store
+ 
+3.2 Supabase Connection
+Use the SAME Supabase project as the web app. Same URL, same anon key, same database. All data is shared.
+ 
+ 
+Supabase client setup (src/lib/supabase.ts):
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { createClient } from '@supabase/supabase-js'
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storage: AsyncStorage, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false } })
+ 
+3.3 Authentication — Google OAuth
+Setup: Use @react-native-google-signin/google-signin package. Configure with the same Google OAuth Client ID used on web.
+Flow: User taps 'Continue with Google' → Google sign-in sheet appears → on success, get idToken → call supabase.auth.signInWithIdToken({ provider: 'google', token: idToken }) → session created → navigate to dashboard or onboarding.
+Deep linking: Configure app scheme (prepwise://) in app.json for OAuth redirect. Add to Google Cloud Console authorized redirect URIs.
+Session persistence: Supabase with AsyncStorage handles this automatically. Check session on app launch.
+Middleware equivalent: Use a root layout file that checks auth state. If no session, redirect to login screen. If session but no onboarding, redirect to onboarding.
+ 
+3.4 Folder Structure
+ 
+
+4. All Screens — Complete Specification
+
+ 
+4.1 Splash Screen
+Background: Full screen blue #185FA5
+Center: Prepwise logo (white icon + white wordmark)
+Below logo: 'Smart Prep. Higher Scores.' in light blue, 14sp
+Behavior: Show for 2 seconds while checking auth state. Then navigate to login or dashboard.
+Implementation: Use expo-splash-screen to control the native splash, then show a custom animated splash component.
+ 
+4.2 Login Screen
+Layout: White background. Logo top center with tagline. Form in center of screen.
+Google button: White background, Google icon (use @expo/vector-icons), 'Continue with Google' text, full width, 48dp height, 12px border radius, 1.5px gray border.
+Divider: 'or' text with lines either side
+Phone option: Phone number input with +234 prefix. 'Send OTP' blue button. Not functional until Twilio is configured — show 'Coming soon' or hide for now.
+Bottom link: 'New to Prepwise? Sign up'
+Error handling: Show red error message below the button if Google sign-in fails.
+ 
+4.3 Onboarding Screen (4 steps)
+Step indicator: 4 dots at top, filled blue = current step, gray = future steps.
+Step 1 — Exam type: Two large tappable cards — JAMB and WAEC. Selected card gets blue border + blue bg tint + checkmark. 'Both' checkbox below.
+Step 2 — Subjects: Grid of subject pill buttons. Tap to select (blue bg, white text). Unselected: white bg, gray text. English pre-selected and locked for JAMB.
+Step 3 — Target: Slider from 100 to 400 for JAMB target score. Large number display. University and course text inputs (optional).
+Step 4 — Exam date: Month and year wheel picker. After selecting: 'Your exam is in X days' preview. 'Start Preparing' blue button full width.
+Navigation: Back and Next buttons at bottom. Back is ghost, Next is primary blue. Back on step 1 goes to login.
+Save: On final step, call supabase upsert to users table with all onboarding data + onboarding_completed: true.
+ 
+4.4 Dashboard (Home Tab)
+Header: Prepwise logo left. Plan badge right (gold crown Pro or blue Upgrade). Avatar initials far right.
+Welcome banner: Blue gradient card. 'Good morning/afternoon, [Name].' Subtext showing weak topic or encouragement. 'Start Practice' button.
+Stats row: Horizontal scroll of 4 stat cards — Streak (flame icon), Average score, Questions answered, Days until exam.
+Recommended practice: Card showing weakest topic with accuracy bar and 'Practice now' button.
+Recent sessions: List of last 3 practice/exam sessions with subject, score, and date.
+Quick actions: 3 large buttons — Practice, Mock Exam, Progress.
+Data: All from same getDashboardData service as web. Fetch on mount and on tab focus.
+ 
+4.5 Practice Mode
+Selection screen: Subject pills (all 8 subjects). Year dropdown or 'Random'. Question count selector (10/20/40). 'Start Practice' button.
+Question screen: Progress bar top. Question number text. Question text in 16sp. A/B/C/D option cards. 'Submit Answer' button.
+Feedback: After submitting — correct option turns green, wrong turns red. Explanation shown below. 'Next Question' button.
+Session complete: Score summary card — X/Y correct, accuracy percentage. 'Practice again' and 'Back to dashboard' buttons.
+Session saving: Save session and answers to Supabase on completion. Call updateStreak.
+Offline consideration: Cache last loaded question set in AsyncStorage so students can practice with limited connectivity.
+ 
+4.6 Mock Exam
+Plan check: On screen load, check if free user has hit 3 mock exams today. If yes, show limit screen with upgrade prompt.
+Setup screen: Exam info card (40 questions, 100 minutes, 4 subjects). Warning about timer. 'Start Exam' button.
+Exam screen: Timer top right (turns amber under 30 min, red under 10 min). Question text and options. Flag button. Previous/Next buttons.
+Question map: Floating button bottom right that opens a modal showing all 40 question numbers color-coded (gray=unanswered, blue=answered, amber=flagged).
+Submit: Submit button opens confirmation bottom sheet. Shows unanswered count. 'Continue exam' or 'Submit now'.
+Auto-submit: When timer hits 0, auto-submit with all current answers.
+Results redirect: After submit, save session + answers to Supabase, navigate to results/[sessionId].
+ 
+4.7 Results Screen
+Score hero: Large score percentage in green/amber/red. 'X correct out of Y questions' text. Performance message.
+Sharecard preview: Branded card showing score, subject bars, Prepwise logo. 'Download' button saves to camera roll (use expo-media-library). 'Share' button opens native share sheet.
+Subject breakdown: Grid of subject cards each with score percentage and progress bar.
+Performance summary: List of stats — correct, wrong, weakest subject, strongest subject.
+Wrong answers: Expandable list of wrong questions with correct answer and explanation. Show first 5, 'Show all' button.
+Actions: Retake exam, Practice weak subjects, Back to dashboard.
+ 
+4.8 Progress Screen
+Score chart: Line chart using react-native-chart-kit or Victory Native. Score over time. Subject filter dropdown.
+Streak calendar: Custom grid component (6 weeks x 7 days). Colored squares: gray=no activity, light blue=practice, dark blue=exam. Current streak with flame icon.
+Subject cards: Cards per subject with average score, trend arrow, weakest topic label.
+Total stats: Questions answered, sessions taken, best score, current streak.
+ 
+4.9 Flashcards Screen
+Plan gate: If free user, show full lock screen with blurred card behind. Lock icon, 'Pro only' message, 'Upgrade' button.
+Subject selector: Horizontal scroll of subject buttons at top.
+Card flip: Full-width card with 3D flip animation on tap. Front = concept. Back = explanation in blue.
+Swipe: Swipe left = next card, swipe right = previous card. Use react-native-gesture-handler.
+Progress tracking: After seeing back, show 'Got it' (green) and 'Review again' (amber) buttons. Save to flashcard_progress table.
+Stats bar: Top of screen: Got it X | Review Y | Unseen Z.
+ 
+4.10 Weekly Quiz Screen
+Intro: Quiz info card — questions count, time remaining, rules. Start button. Current leaderboard preview below.
+One attempt: If already completed, show your score and the full leaderboard.
+Quiz flow: Same as practice mode with progress bar. No timer (unlike mock exam).
+Results: Your score, your rank on leaderboard, full top 10 leaderboard.
+Leaderboard: Medals for top 3. Your row highlighted in blue. Real first names from users table.
+ 
+4.11 Profile Screen
+Plan card: Pro: gold card with crown, features listed, 'View plan details' link. Free: blue card with Upgrade button.
+Details form: Full name (editable), Email (read-only), Exam type (editable), Target score (editable). Save button.
+Stats: Total sessions, questions answered, best score, current streak — read from Supabase.
+Referral info: If user has a referral code applied, show their lesson center name.
+Logout: Red outlined button at bottom. Calls supabase.auth.signOut(), clears AsyncStorage, navigates to login.
+ 
+4.12 Upgrade Screen
+Free vs Pro comparison: Two cards side by side (or stacked on small screens). Checklist style.
+Pricing: Pro: N2,000 one-time. Valid until after JAMB 2026.
+Payment: Bank transfer details (same as web). Copy account number button. WhatsApp activation button.
+Paystack: When Paystack is integrated, add a 'Pay with card' button using Paystack React Native SDK.
+Pro view: If user is Pro, show their active plan status, features, and a thank you message instead of the payment flow.
+ 
+
+5. Navigation Structure
+
+5.1 Bottom Tab Bar
+ 
+5.2 Additional Screens (no tab — navigate from within app)
+results/[id] Navigate here after mock exam completes
+flashcards Navigate from dashboard quick actions or side menu
+quiz Navigate from dashboard or a dedicated leaderboard link
+leaderboard Navigate from quiz results or dashboard
+upgrade Navigate from any premium gate, plan badge tap, or profile
+settings Optional — accessible from profile screen header button
+ 
+5.3 Auth Flow
+App launch: Check AsyncStorage for Supabase session. If found: check onboarding_completed in users table. If true: go to dashboard. If false: go to onboarding. If no session: go to login.
+After Google login: Same check — onboarding complete? If yes → dashboard. If no → onboarding.
+Protected screens: Wrap all tab screens in an auth check. If session disappears (expired), redirect to login.
+Logout: Call supabase.auth.signOut(), clear all AsyncStorage keys, navigate to login and reset navigation stack.
+ 
+
+6. Premium System
+
+The premium system works identically to the web. All plan checks are made against the Supabase subscriptions table.
+ 
+6.1 useUserPlan Hook
+Create the same hook as the web — check subscriptions table for the logged-in user. Returns isPro boolean.
+Query: supabase.from('subscriptions').select('plan, status, current_period_end').eq('user_id', user.id).maybeSingle()
+isPro = plan === 'pro' AND status === 'active' AND current_period_end > today
+Cache result in Zustand or React Query to avoid repeated calls
+Bulk Pro: Also check if user's lesson center has bulk_pro_active = true via user_referrals join. If yes, user is Pro.
+ 
+6.2 Free vs Pro Limits
+ 
+6.3 Premium Gate Component
+Create a <PremiumGate> component that wraps any premium feature.
+If user is Pro: render children normally.
+If user is Free: render a lock screen overlay with blurred background, lock icon, feature name, and 'Upgrade to Pro' button.
+Usage: Wrap the Flashcards tab content entirely. Wrap AI explanation button. Gate unlimited exam access.
+ 
+
+7. Offline and Performance
+
+Cache questions: After loading a practice session, cache the questions in AsyncStorage. If the user loses connection mid-session, they can continue.
+Cache dashboard: Cache last dashboard data for 5 minutes. Show cached data immediately on load, refresh in background.
+Offline indicator: Show a subtle banner when the device has no connection. Don't crash — show cached content.
+Question images: Questions are text-only for now — no images to cache.
+Supabase realtime: Do not use Supabase realtime subscriptions in the mobile app. Use polling or pull-to-refresh instead to save battery.
+ 
+
+8. Push Notifications
+
+Setup: Use expo-notifications. Request permission on first launch after onboarding.
+Streak reminder: If user has not opened the app by 7pm, send: 'Don't break your streak! Open Prepwise and study for 5 minutes.'
+Weekly quiz alert: Every Monday at 8am: 'This week's quiz is live! See if you can top the leaderboard.'
+Score milestone: When a student's average score improves by 10+ points: 'Your average score just jumped to X%! Keep going.'
+Implementation: Use Expo's push notification service for development. For production, send notifications via Supabase Edge Functions or a cron job.
+Permission handling: If user denies permission, never ask again. Don't nag. Notifications are a bonus, not required.
+ 
+
+9. Backend Services to Reuse
+
+All the following service files from the web app can be copied and used in the mobile app with minimal changes. The logic is identical — only the Supabase client initialization differs.
+ 
+ 
+
+10. App Store Submission
+
+10.1 Google Play Store
+Account: Register at play.google.com/console — one-time fee of approximately N14,000
+App name: Prepwise — JAMB & WAEC Prep
+Short description: Nigeria's smartest exam prep app. Free JAMB & WAEC past questions.
+Full description: Include: past questions 2000-2024, timed mock exams, AI explanations, score tracking, weekly quiz, leaderboard. Mention it is free to start. Mention Nigerian students specifically.
+Keywords: JAMB, WAEC, NECO, past questions, exam prep, Nigeria, CBT practice, mock exam
+Category: Education
+Screenshots: Minimum 2, maximum 8. Show: dashboard, practice mode, mock exam, results, flashcards. Use Nigerian student names in the UI.
+Privacy policy: Required. Host a simple privacy policy page at prepwise.ng/privacy.
+Content rating: Everyone — no violent or adult content.
+Pricing: Free (app is free to download and use. In-app purchases for Pro).
+ 
+10.2 Required Assets
+ 
+
+11. Recommended Build Order
+
+Build in this exact order. Each phase is fully testable before moving to the next.
+ 
+ 
+
+12. Environment Variables
+
+ 
+ 
+
+13. Testing Checklist
+
+ 
+
+Prepwise Mobile App Specification v1.0
+Questions? Contact the Prepwise team on WhatsApp before starting Phase 1.
+Build it right. Nigerian students are waiting.
