@@ -87,7 +87,7 @@ export default function Index() {
       if (mounted && isLoading) {
         console.warn('Index: Auth load timeout, forcing route to login');
         setErrorMessage('Taking longer than expected. Continuing...');
-        router.replace('/(auth)/login');
+          router.replace('/(auth)/login');
       }
     }, 10000);
 

@@ -15,16 +15,21 @@ export type Question = {
   exam_type?: string;
 };
 
-export async function loadQuestions(subjectId: string, count = 25): Promise<Question[]> {
-  const { data, error } = await supabase
-    .from('questions')
-    .select('id,prompt,options,correct_answer,explanation,topic,year,subject_id,exam_type')
-    .eq('subject_id', subjectId)
-    .order('year', { ascending: false });
+export async function loadQuestions(subjectId: string, count = 25, examType = 'jamb'): Promise<Question[]> {
+  const { data, error } = await supabase.functions.invoke('session-questions', {
+    body: { subjectId, limit: count, examType: examType.toLowerCase() }
+  });
 
-  if (error) throw error;
+  if (error) {
+    const details = data && typeof data === 'object' && 'error' in data ? data.error : null;
+    throw new Error(typeof details === 'string' ? details : error.message);
+  }
 
-  return [...(data ?? [])].sort(() => Math.random() - 0.5).slice(0, count) as Question[];
+  if (!data || !Array.isArray(data.questions)) {
+    throw new Error(typeof data?.error === 'string' ? data.error : 'Question service returned an invalid response.');
+  }
+
+  return data.questions as Question[];
 }
 
 export async function savePracticeSession(

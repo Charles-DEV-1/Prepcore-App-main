@@ -7,14 +7,27 @@ export async function reportQuestion(
   reason: 'Wrong answer' | 'Confusing question' | 'Typo / error' | 'Bad explanation' | 'Other',
   details?: string
 ) {
-  const { error } = await supabase.from('question_reports').insert({
+  if (!userId) throw new Error('Please sign in before sending a report.');
+  if (!questionId) throw new Error('This question could not be identified. Please reopen it and try again.');
+
+  const report: Record<string, unknown> = {
     user_id: userId,
     question_id: questionId,
-    session_id: sessionId,
     reason,
-    details: details?.trim() ?? null,
-    created_at: new Date().toISOString()
-  });
+  };
 
-  if (error) throw error;
+  // Keep the base insert compatible with older question_reports tables. These
+  // optional columns are added only when the caller actually has a value.
+  if (sessionId) report.session_id = sessionId;
+  if (details?.trim()) report.details = details.trim();
+
+  // Do not request a returned row: some existing RLS policies allow INSERT
+  // but do not allow SELECT, even for the same user's newly-created report.
+  const { error } = await supabase.from('question_reports').insert(report);
+
+  if (error) {
+    if (error.code === '42P01') throw new Error('Question reports are not enabled yet. Run the question_reports migration in Supabase.');
+    if (error.code === '42501') throw new Error('You are not allowed to submit this report. Please sign in again.');
+    throw new Error(error.message || 'Unable to save this report.');
+  }
 }

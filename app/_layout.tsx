@@ -4,6 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { StreakCelebrationHost } from '../src/components/StreakCelebrationHost';
+import { NotificationRuntime } from '../src/components/NotificationRuntime';
+import { FeedbackProvider } from '../src/components/AnimatedFeedback';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -29,7 +32,11 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <FeedbackProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+        <StreakCelebrationHost />
+        <NotificationRuntime />
+      </FeedbackProvider>
     </>
   );
 }

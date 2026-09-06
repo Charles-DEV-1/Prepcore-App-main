@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, View, Text, Pressable } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
@@ -7,6 +8,10 @@ import { useUserPlan } from '../src/hooks/useUserPlan';
 import { subscribeUserToPro } from '../src/services/plan';
 import { createFlutterwavePaymentLink, verifyFlutterwaveTransaction } from '../src/services/payments';
 import { ScreenScrollView } from '../src/components/ScreenScrollView';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActionButton, Card } from '../src/components/PrepcoreUI';
+import { colors, radii } from '../src/constants/theme';
+import { space } from '../src/constants/spacing';
 
 const benefits = [
   'Unlimited mock exams',
@@ -90,69 +95,56 @@ export default function UpgradeScreen() {
   }
 
   return (
-    <ScreenScrollView className="flex-1 bg-[#F8FAFC] px-4 pt-8">
-      <Text className="text-2xl font-bold text-[#0f172a]">Upgrade to Pro</Text>
-      <Text className="mt-2 text-sm text-[#64748b]">Unlock the same Pro path used on the website: deeper practice, premium decks, and unlimited CBT prep.</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
+    <ScreenScrollView className="flex-1 bg-[#F8FAFC] px-4 pt-8" style={{ backgroundColor: colors.page, paddingHorizontal: space.medium }} contentContainerStyle={{ paddingBottom: 100 }}>
+      <Text style={{ color: colors.ink, fontSize: 24, fontWeight: '700' }}>Upgrade to Pro</Text>
+      <Text style={{ marginTop: space.sm, color: colors.textSecondary }}>Unlock the same Pro path used on the website: deeper practice, premium decks, and unlimited CBT prep.</Text>
 
-      <View className="mt-6 rounded-3xl bg-white p-5 shadow-sm shadow-black/5">
-        <Text className="text-lg font-semibold text-[#0f172a]">Pro benefits</Text>
-        <View className="mt-4 space-y-3">
+      {plan.isPro ? (
+        <View style={{ marginTop: space.xl, borderRadius: radii.large, backgroundColor: '#E6FFFA', padding: space.lg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="check-decagram" size={22} color="#065f46" />
+            <Text style={{ marginLeft: space.sm, color: '#065f46', fontSize: 16, fontWeight: '700' }}>You already have Prepcore Pro.</Text>
+          </View>
+          <Text style={{ marginTop: space.sm, color: '#065f46' }}>Your premium access is active and you can continue using flashcards, weekly quizzes, and enhanced practice.</Text>
+        </View>
+      ) : null}
+
+      <Card style={{ marginTop: space.xl }}>
+        <Text style={{ color: colors.ink, fontSize: 16, fontWeight: '700' }}>Pro benefits</Text>
+        <View style={{ marginTop: space.lg }}>
           {benefits.map(benefit => (
-            <Text key={benefit} className="text-[#475569]">- {benefit}</Text>
+            <Text key={benefit} style={{ color: colors.textSecondary, marginBottom: space.sm }}>• {benefit}</Text>
           ))}
         </View>
-      </View>
+      </Card>
 
-      <View className="mt-6 rounded-3xl bg-[#FEF3C7] p-5 shadow-sm shadow-black/5">
-        <Text className="font-semibold text-[#92400e]">Pricing</Text>
-        <Text className="mt-3 text-2xl font-bold text-[#92400e]">N2,000</Text>
-        <Text className="mt-2 text-[#475569]">One-time payment with access until after JAMB.</Text>
+      <View style={{ marginTop: space.xl, borderRadius: radii.large, backgroundColor: '#FEF3C7', padding: space.lg }}>
+        <Text style={{ color: '#92400e', fontSize: 14, fontWeight: '700' }}>Pricing</Text>
+        <Text style={{ marginTop: space.sm, color: '#92400e', fontSize: 24, fontWeight: '700' }}>N2,000</Text>
+        <Text style={{ marginTop: space.sm, color: colors.textSecondary }}>One-time payment with access until after JAMB.</Text>
       </View>
 
       {paymentLink ? (
         <View className="mt-8 space-y-4">
           <Text className="text-sm text-[#475569]">A Flutterwave payment session has been created. Complete payment in the browser and then confirm below.</Text>
-          <Pressable
-            onPress={confirmPayment}
-            disabled={processing}
-            className="rounded-2xl bg-[#10B981] py-4 items-center"
-          >
-            <Text className="text-white font-semibold">{processing ? 'Confirming payment...' : 'Confirm payment'}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => WebBrowser.openBrowserAsync(paymentLink)}
-            className="rounded-2xl border border-[#185FA5] bg-white py-4 items-center"
-          >
-            <Text className="text-[#185FA5] font-semibold">Open payment page again</Text>
-          </Pressable>
+          <ActionButton onPress={confirmPayment} disabled={processing}>{processing ? 'Confirming payment...' : 'Confirm payment'}</ActionButton>
+          <ActionButton variant="outline" onPress={() => WebBrowser.openBrowserAsync(paymentLink)}>Open payment page again</ActionButton>
         </View>
       ) : (
         <View className="space-y-4">
-          <Pressable
-            onPress={startPayment}
-            disabled={processing || plan.isLoading || plan.isPro}
-            className="mt-8 rounded-2xl bg-[#185FA5] py-4 items-center"
-          >
-            <Text className="text-white font-semibold">
-              {processing ? 'Preparing payment...' : plan.isPro ? 'Prepcore Pro active' : 'Pay with card'}
-            </Text>
-          </Pressable>
+          <ActionButton className="mt-8" onPress={startPayment} disabled={processing || plan.isLoading || plan.isPro}>{processing ? 'Preparing payment...' : plan.isPro ? 'Prepcore Pro active' : 'Pay with card'}</ActionButton>
 
-          <Pressable
-            onPress={activatePro}
-            disabled={processing || plan.isLoading || plan.isPro}
-            className="rounded-2xl border border-[#CBD5E1] bg-white py-4 items-center"
-          >
-            <Text className="text-[#185FA5] font-semibold">Activate Pro without payment (demo)</Text>
-          </Pressable>
+          <ActionButton variant="outline" onPress={activatePro} disabled={processing || plan.isLoading || plan.isPro}>Activate Pro without payment (demo)</ActionButton>
         </View>
       )}
 
       {!plan.isLoading && plan.isPro ? (
-        <View className="mt-4 rounded-2xl bg-[#E6FFFA] p-4">
-          <Text className="text-sm text-[#065f46]">Your Pro status is active. You can access premium flashcards, unlimited mock exams, and AI explanation limits.</Text>
+        <View style={{ marginTop: space.lg, borderRadius: radii.large, backgroundColor: '#E6FFFA', padding: space.lg }}>
+          <Text style={{ color: '#065f46' }}>Your Pro status is active. You can access premium flashcards, unlimited mock exams, and AI explanation limits.</Text>
         </View>
       ) : null}
     </ScreenScrollView>
+    </SafeAreaView>
   );
 }

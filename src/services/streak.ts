@@ -1,13 +1,10 @@
 import { supabase } from '../lib/supabase';
+import { emitStreakIncreased } from './streakEvents';
 
 export async function getCurrentStreak(userId: string) {
-  const { data } = await supabase
-    .from('streaks')
-    .select('current_count')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  return data?.current_count ?? 0;
+  const { data, error } = await supabase.rpc('get_current_streak', { p_user_id: userId });
+  if (error) throw error;
+  return Number(data ?? 0);
 }
 
 export async function updateStreak(userId: string) {
@@ -19,42 +16,24 @@ export async function updateStreak(userId: string) {
   };
 
   const today = getLocalDateKey(new Date());
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = getLocalDateKey(yesterday);
-
-  const { data: streak } = await supabase
-    .from('streaks')
-    .select('id,current_count,longest_count,last_activity_date')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (!streak) {
-    await supabase.from('streaks').insert({
-      user_id: userId,
-      current_count: 1,
-      longest_count: 1,
-      last_activity_date: today
-    });
-    return;
-  }
-
-  if (streak.last_activity_date === today) return;
-
-  const newCount = streak.last_activity_date === yesterdayStr ? (streak.current_count ?? 0) + 1 : 1;
-
-  await supabase
-    .from('streaks')
-    .update({
-      current_count: newCount,
-      longest_count: Math.max(newCount, streak.longest_count ?? 0),
-      last_activity_date: today
-    })
-    .eq('id', streak.id);
-
-  await supabase.rpc('add_user_points', {
+  const { data, error } = await supabase.rpc('record_study_streak', {
     p_user_id: userId,
-    p_points: 5,
-    p_session_type: 'streak'
+    p_activity_date: today,
   });
+  if (error) throw error;
+  const result = (data ?? {}) as { current_count?: number; increased?: boolean };
+  const newCount = Number(result.current_count ?? 0);
+  if (!result.increased) return newCount;
+  emitStreakIncreased(userId, newCount);
+
+  try {
+    await supabase.rpc('add_user_points', {
+      p_user_id: userId,
+      p_points: 5,
+      p_session_type: 'streak'
+    });
+  } catch {
+    // A points failure must not roll back or hide a successful streak update.
+  }
+  return newCount;
 }

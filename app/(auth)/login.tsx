@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, Pressable, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ensureUserProfile } from '../../src/services/auth';
 import { ActionButton, BrandMark } from '../../src/components/PrepcoreUI';
 import { colors, radii, shadow } from '../../src/constants/theme';
+import { space } from '../../src/constants/spacing';
 
 WebBrowser.maybeCompleteAuthSession();
 

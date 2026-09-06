@@ -1,16 +1,19 @@
 // Prepcore - UI Polish
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { ScreenScrollView } from '../../src/components/ScreenScrollView';
-import { colors, shadow } from '../../src/constants/theme';
+import { colors, radii, shadow } from '../../src/constants/theme';
 import { space } from '../../src/constants/spacing';
+import { MotionContainer } from '../../src/components/AnimatedMotion';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useUserPlan } from '../../src/hooks/useUserPlan';
 import { signOut } from '../../src/services/auth';
 import { getProfile, getUserPoints } from '../../src/services/profile';
 import { getCurrentStreak } from '../../src/services/streak';
+import { removeDevicePushTokens } from '../../src/services/notifications';
 
 type PointSummary = {
   totalPoints: number;
@@ -90,7 +93,7 @@ export default function ProfileScreen() {
         if (!mounted) return;
         setEmail(profile?.email ?? user.email ?? '');
         setName(profile?.full_name ?? user.user_metadata?.full_name ?? '');
-        setExamType(profile?.exam_type ?? 'JAMB');
+        setExamType(String(profile?.exam_type ?? 'JAMB').toUpperCase());
         setPoints(userPoints);
         setStreak(currentStreak);
       } catch (err) {
@@ -110,6 +113,7 @@ export default function ProfileScreen() {
 
   async function handleLogout() {
     try {
+      try { if (user) await removeDevicePushTokens(user.id); } catch { /* Sign-out must still complete if token cleanup is unavailable. */ }
       await signOut();
       router.replace('/(auth)/login');
     } catch (err) {
@@ -144,88 +148,116 @@ export default function ProfileScreen() {
   const planLabel = plan.isLoading ? 'Loading...' : plan.isPro ? 'Pro' : 'Free';
 
   return (
-    <ScreenScrollView className="flex-1 pt-8" style={{ backgroundColor: colors.white, paddingHorizontal: space.medium }} contentContainerStyle={{ paddingBottom: 100 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <ScreenScrollView className="flex-1 pt-8" style={{ backgroundColor: colors.background, paddingHorizontal: space.medium }} contentContainerStyle={{ paddingBottom: 100 }}>
       <View className="flex-row items-center justify-end">
         <Pressable
           onPress={() => router.push('/account-settings')}
-          className="h-11 w-11 items-center justify-center rounded-full"
+          style={{ height: 44, width: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.softLine }}
         >
-          <Ionicons name="settings-outline" size={30} color={colors.text} />
+          <Ionicons name="settings-outline" size={24} color={colors.text} />
         </Pressable>
       </View>
 
       <View className="items-center">
+        <MotionContainer delay={70} distance={10}>
         <View
-          className="items-center justify-center rounded-full border-[7px] border-white"
           style={{
-            height: 126,
-            width: 126,
+            height: 120,
+            width: 120,
+            borderRadius: 999,
+            alignItems: 'center',
+            justifyContent: 'center',
             backgroundColor: colors.primary,
+            borderWidth: 6,
+            borderColor: colors.surface,
             ...shadow
           }}
         >
-          <Text className="text-5xl font-extrabold text-white">{initials}</Text>
+          <Text style={{ color: colors.white, fontSize: 36, fontWeight: '700' }}>{initials}</Text>
         </View>
+        </MotionContainer>
 
-        <Text className="text-center text-4xl font-extrabold" style={{ marginTop: 12, color: colors.ink }}>
+        <Text style={{ marginTop: space.md, color: colors.ink, fontSize: 24, fontWeight: '700', textAlign: 'center' }}>
           {displayName}
         </Text>
 
-        <View className="mt-4 flex-row items-center rounded-full px-5 py-3" style={{ backgroundColor: colors.primarySoft }}>
-          <Ionicons name="school" size={21} color={colors.primary} />
-          <Text className="ml-3 text-lg font-bold" style={{ color: colors.primary }}>
+        <View style={{ marginTop: space.md, flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: colors.primarySoft }}>
+          <Ionicons name="school" size={20} color={colors.primary} />
+          <Text style={{ marginLeft: space.sm, color: colors.primary, fontSize: 14, fontWeight: '700' }}>
             {examType} Preparation
           </Text>
         </View>
       </View>
 
-      <View className="mt-8 flex-row items-center rounded-3xl border bg-white p-5" style={{ borderColor: colors.softLine }}>
-        <View className="h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: '#FFF8E8' }}>
-          <MaterialCommunityIcons name="crown" size={34} color="#D99A16" />
+      <MotionContainer delay={120} distance={8}>
+      <View style={{ marginTop: space.xl, flexDirection: 'row', alignItems: 'center', borderRadius: radii.large, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.surface, padding: space.lg }}>
+        <View style={{ height: 56, width: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: '#FFF8E8' }}>
+          <MaterialCommunityIcons name="crown" size={28} color="#D99A16" />
         </View>
-        <View className="ml-4 flex-1">
-          <Text className="text-lg font-medium" style={{ color: colors.muted }}>Current Plan</Text>
-          <Text className="text-3xl font-extrabold" style={{ color: colors.ink }}>{planLabel}</Text>
+        <View style={{ marginLeft: space.md, flex: 1 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Current Plan</Text>
+          <Text style={{ color: colors.ink, fontSize: 22, fontWeight: '700' }}>{planLabel}</Text>
         </View>
         {!plan.isPro ? (
           <Pressable
             onPress={() => router.push('/upgrade')}
-            className="flex-row items-center rounded-full border px-4 py-3"
-            style={{ borderColor: '#D6A72F', backgroundColor: '#FFFCF2' }}
+            style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: '#D6A72F', backgroundColor: '#FFFCF2', paddingHorizontal: space.md, paddingVertical: space.sm }}
           >
-            <MaterialCommunityIcons name="auto-fix" size={18} color="#A66B00" />
-            <Text className="ml-2 text-base font-bold" style={{ color: '#8A5A00' }}>Upgrade to Pro</Text>
+            <MaterialCommunityIcons name="auto-fix" size={16} color="#A66B00" />
+            <Text style={{ marginLeft: space.sm, color: '#8A5A00', fontSize: 13, fontWeight: '700' }}>Upgrade to Pro</Text>
           </Pressable>
-        ) : null}
+        ) : (
+          <Pressable
+            onPress={() => router.push('/upgrade')}
+            style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primarySoft, paddingHorizontal: space.md, paddingVertical: space.sm }}
+          >
+            <MaterialCommunityIcons name="credit-card-outline" size={16} color={colors.primary} />
+            <Text style={{ marginLeft: space.sm, color: colors.primary, fontSize: 13, fontWeight: '700' }}>Manage subscription</Text>
+          </Pressable>
+        )}
+      </View>
+      </MotionContainer>
+
+      <View style={{ marginTop: space.xl, flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1, alignItems: 'center', borderRadius: radii.large, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.surface, paddingHorizontal: space.sm, paddingVertical: space.lg }}>
+          <View style={{ height: 44, width: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: colors.primarySoft }}>
+            <Ionicons name="star-outline" size={22} color={colors.primary} />
+          </View>
+          <Text style={{ marginTop: space.md, color: colors.ink, fontSize: 18, fontWeight: '700' }}>{formatNumber(points.totalPoints)}</Text>
+          <Text style={{ marginTop: 4, color: colors.textSecondary, fontSize: 13 }}>Total Points</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', borderRadius: radii.large, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.surface, paddingHorizontal: space.sm, paddingVertical: space.lg }}>
+          <View style={{ height: 44, width: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: colors.primarySoft }}>
+            <Ionicons name="stats-chart" size={22} color={colors.primary} />
+          </View>
+          <Text style={{ marginTop: space.md, color: colors.ink, fontSize: 18, fontWeight: '700' }}>{formatNumber(points.sessionsCompleted)}</Text>
+          <Text style={{ marginTop: 4, color: colors.textSecondary, fontSize: 13 }}>Sessions</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', borderRadius: radii.large, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.surface, paddingHorizontal: space.sm, paddingVertical: space.lg }}>
+          <View style={{ height: 44, width: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: colors.primarySoft }}>
+            <Ionicons name="flame-outline" size={22} color={colors.primary} />
+          </View>
+          <Text style={{ marginTop: space.md, color: colors.ink, fontSize: 18, fontWeight: '700' }}>{formatNumber(streak)}</Text>
+          <Text style={{ marginTop: 4, color: colors.textSecondary, fontSize: 13 }}>Day Streak</Text>
+        </View>
       </View>
 
-      <View style={{ marginTop: space.medium, flexDirection: 'row', gap: 8 }}>
-        <View className="flex-1 items-center rounded-3xl border bg-white px-2 py-5" style={{ borderColor: colors.softLine }}>
-          <View className="h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: colors.primarySoft }}>
-            <Ionicons name="star-outline" size={27} color={colors.primary} />
-          </View>
-          <Text className="mt-4 text-3xl font-extrabold" style={{ color: colors.ink }}>{formatNumber(points.totalPoints)}</Text>
-          <Text className="mt-1 text-base" style={{ color: colors.muted }}>Total Points</Text>
+      <View style={{ marginTop: space.xl, borderRadius: radii.large, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.surface, padding: space.lg }}>
+        <Text style={{ color: colors.ink, fontSize: 16, fontWeight: '700' }}>Study snapshot</Text>
+        <View style={{ marginTop: space.md, flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name="trophy-outline" size={18} color={colors.primary} />
+          <Text style={{ marginLeft: space.sm, color: colors.textSecondary }}>Leaderboard rank: {points.rank}</Text>
         </View>
-        <View className="flex-1 items-center rounded-3xl border bg-white px-2 py-5" style={{ borderColor: colors.softLine }}>
-          <View className="h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: colors.primarySoft }}>
-            <Ionicons name="stats-chart" size={27} color={colors.primary} />
-          </View>
-          <Text className="mt-4 text-3xl font-extrabold" style={{ color: colors.ink }}>{formatNumber(points.sessionsCompleted)}</Text>
-          <Text className="mt-1 text-base" style={{ color: colors.muted }}>Sessions</Text>
-        </View>
-        <View className="flex-1 items-center rounded-3xl border bg-white px-2 py-5" style={{ borderColor: colors.softLine }}>
-          <View className="h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: colors.primarySoft }}>
-            <Ionicons name="flame-outline" size={28} color={colors.primary} />
-          </View>
-          <Text className="mt-4 text-3xl font-extrabold" style={{ color: colors.ink }}>{formatNumber(streak)}</Text>
-          <Text className="mt-1 text-base" style={{ color: colors.muted }}>Day Streak</Text>
+        <View style={{ marginTop: space.sm, flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name="book-outline" size={18} color={colors.primary} />
+          <Text style={{ marginLeft: space.sm, color: colors.textSecondary }}>Weekly quiz completions: {points.quizzesCompleted}</Text>
         </View>
       </View>
 
-      <Text className="text-2xl font-extrabold" style={{ marginTop: space.medium, color: colors.ink }}>Settings</Text>
+      <Text style={{ marginTop: space.xl, color: colors.ink, fontSize: 18, fontWeight: '700' }}>Settings</Text>
 
-      <View className="mt-4 rounded-3xl border bg-white px-5" style={{ borderColor: colors.softLine }}>
+      <View style={{ marginTop: space.md, borderRadius: radii.large, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.surface, paddingHorizontal: space.lg }}>
         <SettingsRow
           label="Account Settings"
           icon={<Ionicons name="person-outline" size={27} color={colors.primary} />}
@@ -258,5 +290,6 @@ export default function ProfileScreen() {
         />
       </View>
     </ScreenScrollView>
+    </SafeAreaView>
   );
 }

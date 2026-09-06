@@ -1,26 +1,21 @@
 // Prepcore - UI Polish
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, Text, TextInput, ToastAndroid, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/hooks/useAuth';
-import { getProfile, updateProfile } from '../src/services/profile';
+import { getProfile, updateAccount } from '../src/services/profile';
 import { Card } from '../src/components/PrepcoreUI';
 import { ScreenScrollView } from '../src/components/ScreenScrollView';
 import { colors, radii } from '../src/constants/theme';
 import { space } from '../src/constants/spacing';
-
-function showSuccess(message: string) {
-  if (Platform.OS === 'android') {
-    ToastAndroid.show(message, ToastAndroid.SHORT);
-    return;
-  }
-  Alert.alert('Saved', message);
-}
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAppFeedback } from '../src/components/AnimatedFeedback';
 
 export default function AccountSettingsScreen() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
+  const { showFeedback } = useAppFeedback();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -59,10 +54,10 @@ export default function AccountSettingsScreen() {
     if (!user) return;
     setSaving(true);
     try {
-      await updateProfile(user.id, { full_name: fullName.trim(), phone: phone.trim() });
-      showSuccess('Your account changes have been saved.');
+      await updateAccount(user.id, { full_name: fullName, phone, email, currentEmail: user.email ?? '' });
+      showFeedback(email.trim().toLowerCase() !== (user.email ?? '').toLowerCase() ? 'Your account was updated. Check your new email if verification is required.' : 'Your account changes have been saved.', 'success', 'bottom');
     } catch (err) {
-      Alert.alert('Unable to save changes', err instanceof Error ? err.message : 'Please try again.');
+      showFeedback(err instanceof Error ? err.message : 'Unable to save changes. Please try again.', 'error', 'top');
     } finally {
       setSaving(false);
     }
@@ -77,6 +72,7 @@ export default function AccountSettingsScreen() {
   }
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
     <ScreenScrollView
       className="flex-1 pt-8"
       style={{ backgroundColor: colors.page, paddingHorizontal: space.medium }}
@@ -100,14 +96,7 @@ export default function AccountSettingsScreen() {
         />
 
         <Text style={{ marginTop: space.large, color: colors.ink, fontSize: 16, fontWeight: '600', lineHeight: 24 }}>Email</Text>
-        <View style={{ marginTop: space.small, minHeight: 52, borderRadius: radii.md, borderWidth: 1, borderColor: colors.line, paddingHorizontal: space.medium, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primarySoft }}>
-          <TextInput
-            value={email}
-            editable={false}
-            style={{ flex: 1, color: colors.text, fontSize: 14, lineHeight: 21 }}
-          />
-          <Ionicons name="lock-closed-outline" size={20} color={colors.muted} />
-        </View>
+        <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" placeholder="name@email.com" placeholderTextColor={colors.muted} style={{ marginTop: space.small, minHeight: 52, borderRadius: radii.md, borderWidth: 1, borderColor: colors.line, paddingHorizontal: space.medium, color: colors.text, fontSize: 14, lineHeight: 21 }} />
 
         <Text style={{ marginTop: space.large, color: colors.ink, fontSize: 16, fontWeight: '600', lineHeight: 24 }}>Phone Number</Text>
         <TextInput
@@ -129,6 +118,6 @@ export default function AccountSettingsScreen() {
         <Text style={{ color: colors.white, fontSize: 16, fontWeight: '700', lineHeight: 24 }}>{saving ? 'Saving...' : 'Save Changes'}</Text>
       </Pressable>
     </ScreenScrollView>
+    </SafeAreaView>
   );
 }
-

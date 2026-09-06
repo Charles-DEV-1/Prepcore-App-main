@@ -1,6 +1,7 @@
 // Prepcore — Live Data & Polish
 import { supabase } from '../lib/supabase';
-import { Question, loadQuestions } from './practice';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loadQuestions, Question } from './practice';
 import { updateStreak } from './streak';
 import { getSubjectsWithQuestionCounts } from './subjects';
 
@@ -19,11 +20,44 @@ export async function checkMockExamLimit(userId: string, isPro: boolean) {
   return { allowed: taken < 3, remaining: Math.max(0, 3 - taken) };
 }
 
-export async function loadExamQuestions(examType = 'JAMB') {
+function shuffle<T>(items: T[]) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
+
+async function loadFreshQuestions(subjectId: string, examType: string, count: number, userId?: string) {
+  const pool = await loadQuestions(subjectId, count, examType);
+  if (!userId) return shuffle(pool).slice(0, count);
+
+  const historyKey = `exam_seen_${userId}_${examType.toLowerCase()}_${subjectId}`;
+  let seen: string[] = [];
+  try {
+    const stored = await AsyncStorage.getItem(historyKey);
+    seen = stored ? JSON.parse(stored) : [];
+  } catch {
+    seen = [];
+  }
+  const seenSet = new Set(seen);
+  const fresh = shuffle(pool.filter(question => !seenSet.has(question.id))).slice(0, count);
+  const remaining = count - fresh.length;
+  const fallback = remaining > 0 ? shuffle(pool.filter(question => seenSet.has(question.id))).slice(0, remaining) : [];
+  const selected = [...fresh, ...fallback];
+  const nextHistory = [...seen, ...selected.map(question => question.id)].filter((id, index, ids) => ids.indexOf(id) === index).slice(-Math.max(pool.length, count));
+  await AsyncStorage.setItem(historyKey, JSON.stringify(nextHistory));
+  return selected;
+}
+
+export async function loadExamQuestions(examType = 'JAMB', subjectIds?: string[], userId?: string) {
   const subjects = await getSubjectsWithQuestionCounts(examType);
+  const chosenSubjects = subjectIds?.length ? subjects.filter(subject => subjectIds.includes(subject.id)) : subjects.slice(0, 4);
+  const englishSubject = chosenSubjects.find(subject => subject.label.toLowerCase().includes('english'));
+  const otherSubjects = chosenSubjects.filter(subject => subject.id !== englishSubject?.id);
+  const otherBase = otherSubjects.length ? Math.floor(120 / otherSubjects.length) : 0;
+  const otherRemainder = otherSubjects.length ? 120 % otherSubjects.length : 0;
   const groups = await Promise.all(
-    subjects.filter(subject => subject.questionCount > 0).slice(0, 4).map(async subject => {
-      const questions = await loadQuestions(subject.id, 10);
+    chosenSubjects.filter(subject => subject.questionCount > 0).slice(0, 4).map(async subject => {
+      const otherIndex = otherSubjects.findIndex(item => item.id === subject.id);
+      const requestedCount = englishSubject?.id === subject.id ? 60 : otherBase + (otherIndex >= 0 && otherIndex < otherRemainder ? 1 : 0);
+      const questions = await loadFreshQuestions(subject.id, examType, requestedCount, userId);
       return questions.map(question => ({ ...question, subject_label: subject.label }));
     })
   );

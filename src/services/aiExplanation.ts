@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GROQ_API_KEY } from '../lib/env';
+import { supabase } from '../lib/supabase';
 
 const AI_USAGE_PREFIX = 'ai_usage_';
 const FREE_LIMIT = 5;
@@ -29,49 +29,21 @@ export async function getAIExplanation(params: {
     throw new Error(params.isPro ? 'Daily AI limit reached (10/day on Pro).' : 'Daily AI limit reached. Upgrade to Pro for more.');
   }
 
-  if (!GROQ_API_KEY) {
-    throw new Error('Missing Groq API key.');
+  const { data, error } = await supabase.functions.invoke('ai-explanation', { body: params });
+  if (error) {
+    let message = error.message || 'AI explanation service is unavailable.';
+    const response = (error as { context?: Response }).context;
+    if (response) {
+      try {
+        const payload = await response.clone().json();
+        if (payload?.error) message = String(payload.error);
+      } catch {
+        // Keep the SDK error when the function did not return JSON.
+      }
+    }
+    throw new Error(message);
   }
-
-  const optionsText = Object.entries(params.options).map(([key, value]) => `${key}. ${value}`).join('\n');
-  let response: Response;
-
-  try {
-    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        messages: [
-          {
-            role: 'user',
-            content: `You are a JAMB tutor. Explain this answer to a Nigerian student.
-Subject: ${params.subject}
-Question: ${params.question}
-Options:
-${optionsText}
-Correct Answer: ${params.correctAnswer}
-Basic Explanation: ${params.explanation}
-Give a clear, simple explanation under 150 words. Be encouraging.`
-          }
-        ],
-        max_tokens: 200,
-        temperature: 0.7
-      })
-    });
-  } catch (err) {
-    throw new Error(err instanceof Error ? `AI network request failed: ${err.message}` : 'AI network request failed.');
-  }
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`AI request failed: ${response.status} ${response.statusText} - ${text}`);
-  }
-
-  const data = await response.json();
+  if (!data?.explanation) throw new Error(data?.error || 'AI did not return an explanation.');
   await AsyncStorage.setItem(usageKey(), String(used + 1));
-  return data.choices?.[0]?.message?.content ?? 'Could not generate explanation.';
+  return data.explanation;
 }

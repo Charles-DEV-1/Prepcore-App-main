@@ -17,11 +17,11 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": ["expo-notifications"],
     "extra": {
       "supabaseUrl": "https://ioakyesaeondeqvbcaua.supabase.co",
-      "supabaseAnonKey": "REPLACE_WITH_SUPABASE_ANON_KEY",
-      "googleClientId": "REPLACE_WITH_GOOGLE_CLIENT_ID",
-      "groqApiKey": "REPLACE_WITH_GROQ_API_KEY",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvYWt5ZXNhZW9uZGVxdmJjYXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDczODUsImV4cCI6MjA5NDA4MzM4NX0.gFNoW_li-x-0OlLMqKaaxiS1Ni8FfeM3wgeRun1ZCrQ",
+      "googleClientId": "499339927695-th661mqkc2g7rqfil0i21741uh6na5ro.apps.googleusercontent.com",
       "flutterwavePublicKey": "REPLACE_WITH_FLUTTERWAVE_PUBLIC_KEY",
       "flutterwaveSecretKey": "REPLACE_WITH_FLUTTERWAVE_SECRET_KEY",
       "eas": {

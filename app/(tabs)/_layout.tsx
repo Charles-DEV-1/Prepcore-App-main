@@ -48,6 +48,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="leaderboard"
+        options={{
+          title: 'Rankings',
+          tabBarIcon: ({ color, size }) => <Ionicons name="podium-outline" size={size} color={color} />
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

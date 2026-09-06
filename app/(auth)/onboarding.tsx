@@ -1,6 +1,7 @@
 // Prepcore — Live Data & Polish
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../src/hooks/useAuth';
 import { useRouter } from 'expo-router';
@@ -11,6 +12,7 @@ import { completeOnboarding as saveOnboarding } from '../../src/services/onboard
 import { ScreenScrollView } from '../../src/components/ScreenScrollView';
 import { ActionButton, StepDots, SubjectIcon } from '../../src/components/PrepcoreUI';
 import { colors, radii } from '../../src/constants/theme';
+import { space } from '../../src/constants/spacing';
 
 const steps = ['Exam', 'Subjects', 'Goal'];
 
@@ -81,71 +83,78 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <ScreenScrollView contentContainerStyle={{ padding: 24, paddingTop: 56, paddingBottom: 130 }}>
-        <StepDots total={steps.length} active={step} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScreenScrollView contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: space.xxl, paddingBottom: 130 }}>
+          <StepDots total={steps.length} active={step} />
 
-        {step === 0 ? (
-          <View className="mt-14">
-            <Text className="text-center text-5xl font-extrabold" style={{ color: colors.ink, lineHeight: 58 }}>Which exam are you preparing for?</Text>
-            <View className="mt-16 space-y-5">
+          {step === 0 ? (
+            <View style={{ marginTop: space.xxl }}>
+              <Text style={{ color: colors.ink, fontSize: 24, fontWeight: '700', textAlign: 'center', lineHeight: 32 }}>Which exam are you preparing for?</Text>
+              <View style={{ marginTop: space.xl }}>
               {examTracks.map(option => {
                 const selected = examType === option;
                 return (
                   <Pressable
                     key={option}
                     onPress={() => setExamType(option)}
-                    className="flex-row items-center justify-center"
                     style={{
-                      minHeight: 92,
-                      borderRadius: radii.lg,
-                      borderWidth: selected ? 2 : 1.5,
-                      borderColor: selected ? colors.primary : '#8A9098',
-                      backgroundColor: selected ? colors.primarySoft : colors.white
+                      minHeight: 76,
+                      borderRadius: radii.large,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primarySoft : colors.surface,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: space.lg,
+                      marginBottom: space.md
                     }}
                   >
-                    <Ionicons name="school" size={28} color={colors.primary} />
-                    <Text className="ml-4 text-2xl font-extrabold" style={{ color: colors.text }}>{option} Only</Text>
-                    {selected ? <Ionicons style={{ marginLeft: 12 }} name="checkmark-circle" size={30} color={colors.success} /> : null}
+                    <Ionicons name="school" size={24} color={colors.primary} />
+                    <Text style={{ marginLeft: space.md, color: colors.text, fontSize: 16, fontWeight: '700' }}>{option} Only</Text>
+                    {selected ? <Ionicons style={{ marginLeft: space.md }} name="checkmark-circle" size={24} color={colors.success} /> : null}
                   </Pressable>
                 );
               })}
               <Pressable
                 onPress={() => setExamType('JAMB')}
-                className="flex-row items-center justify-center"
-                style={{ minHeight: 92, borderRadius: radii.lg, borderWidth: 1.5, borderColor: '#8A9098', backgroundColor: colors.white }}
+                style={{ minHeight: 76, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg }}
               >
-                <Ionicons name="school" size={28} color={colors.primary} />
-                <Text className="ml-4 text-2xl font-extrabold" style={{ color: colors.text }}>Both JAMB and WAEC</Text>
+                <Ionicons name="school" size={24} color={colors.primary} />
+                <Text style={{ marginLeft: space.md, color: colors.text, fontSize: 16, fontWeight: '700' }}>Both JAMB and WAEC</Text>
               </Pressable>
             </View>
           </View>
         ) : null}
 
         {step === 1 ? (
-          <View className="mt-14">
-            <Text className="text-center text-5xl font-extrabold" style={{ color: colors.ink }}>Pick your subjects</Text>
-            <Text className="mt-5 text-center text-3xl leading-10" style={{ color: '#555A63' }}>Select the subjects you{"'"}re preparing for</Text>
-            <View className="mt-12 flex-row flex-wrap justify-between">
+          <View style={{ marginTop: space.xxl }}>
+            <Text style={{ color: colors.ink, fontSize: 24, fontWeight: '700', textAlign: 'center' }}>Pick your subjects</Text>
+            <Text style={{ marginTop: space.md, color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>Select the subjects you{"'"}re preparing for</Text>
+            <View style={{ marginTop: space.xl, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
               {availableSubjects.slice(0, 8).map(subject => {
                 const selected = subjects.includes(subject.label);
                 return (
                   <Pressable
                     key={subject.id}
                     onPress={() => toggleSubject(subject.label)}
-                    className="mb-5 flex-row items-center p-4"
                     style={{
                       width: '47%',
-                      minHeight: 92,
-                      borderRadius: radii.lg,
-                      borderWidth: 2,
-                      borderColor: selected ? colors.primary : '#8A9098',
-                      backgroundColor: selected ? colors.primary : colors.white
+                      minHeight: 88,
+                      borderRadius: radii.large,
+                      borderWidth: selected ? 2 : 1,
+                      borderColor: selected ? colors.primary : colors.border,
+                      backgroundColor: selected ? colors.primary : colors.surface,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: space.md,
+                      marginBottom: space.md
                     }}
                   >
                     <SubjectIcon subject={subject.label} selected={selected} />
-                    <Text className="ml-3 flex-1 text-xl font-extrabold leading-6" style={{ color: selected ? colors.white : colors.text }}>{subject.label}</Text>
-                    {selected ? <Ionicons name="checkmark-circle" size={26} color={colors.white} /> : null}
+                    <Text style={{ marginLeft: space.sm, flex: 1, color: selected ? colors.white : colors.text, fontSize: 14, fontWeight: '700' }}>{subject.label}</Text>
+                    {selected ? <Ionicons name="checkmark-circle" size={20} color={colors.white} /> : null}
                   </Pressable>
                 );
               })}
@@ -154,47 +163,44 @@ export default function OnboardingScreen() {
         ) : null}
 
         {step === 2 ? (
-          <View className="mt-14">
-            <Text className="text-center text-5xl font-extrabold" style={{ color: colors.ink }}>Set your goal</Text>
-            <Text className="mt-5 text-center text-2xl leading-8" style={{ color: '#555A63' }}>A clear target helps Prepcore guide your practice.</Text>
-            <View className="mt-12 space-y-5">
-              <View className="p-5" style={{ borderRadius: 22, backgroundColor: colors.primarySoft }}>
-                <View className="flex-row items-center">
-                  <MaterialCommunityIcons name="bullseye-arrow" size={30} color={colors.primary} />
-                  <Text className="ml-3 text-xl font-bold" style={{ color: colors.ink }}>Target score</Text>
+          <View style={{ marginTop: space.xxl }}>
+            <Text style={{ color: colors.ink, fontSize: 24, fontWeight: '700', textAlign: 'center' }}>Set your goal</Text>
+            <Text style={{ marginTop: space.md, color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>A clear target helps Prepcore guide your practice.</Text>
+            <View style={{ marginTop: space.xl }}>
+              <View style={{ padding: space.lg, borderRadius: radii.large, backgroundColor: colors.primarySoft }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="bullseye-arrow" size={24} color={colors.primary} />
+                  <Text style={{ marginLeft: space.md, color: colors.ink, fontSize: 16, fontWeight: '700' }}>Target score</Text>
                 </View>
                 <TextInput
                   value={String(targetScore)}
                   keyboardType="number-pad"
                   onChangeText={value => setTargetScore(Number(value) || 100)}
-                  className="mt-5 rounded-2xl bg-white px-5 py-4 text-2xl font-bold"
-                  style={{ color: colors.text }}
+                  style={{ marginTop: space.md, minHeight: 48, borderRadius: radii.large, paddingHorizontal: space.lg, color: colors.text, fontSize: 16, backgroundColor: colors.surface }}
                 />
               </View>
               <TextInput
                 value={examDate}
                 onChangeText={setExamDate}
                 placeholder="Exam date: YYYY-MM-DD"
-                placeholderTextColor="#8B929E"
-                className="rounded-2xl border bg-white px-5 py-4 text-xl"
-                style={{ borderColor: colors.line, color: colors.text }}
+                placeholderTextColor={colors.muted}
+                style={{ marginTop: space.md, minHeight: 48, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space.lg, color: colors.text, backgroundColor: colors.surface }}
               />
               <TextInput
                 value={referralCode}
                 onChangeText={setReferralCode}
                 autoCapitalize="characters"
                 placeholder="Lesson center code optional"
-                placeholderTextColor="#8B929E"
-                className="rounded-2xl border bg-white px-5 py-4 text-xl"
-                style={{ borderColor: colors.line, color: colors.text }}
+                placeholderTextColor={colors.muted}
+                style={{ marginTop: space.md, minHeight: 48, borderRadius: radii.large, borderWidth: 1, borderColor: colors.border, paddingHorizontal: space.lg, color: colors.text, backgroundColor: colors.surface }}
               />
             </View>
           </View>
         ) : null}
       </ScreenScrollView>
 
-      <View className="absolute bottom-0 left-0 right-0 bg-white px-6 pb-8 pt-4">
-        <View className="flex-row gap-3">
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: colors.surface, paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xl }}>
+        <View style={{ flexDirection: 'row', gap: space.md }}>
           {step > 0 ? (
             <ActionButton variant="outline" className="flex-1" onPress={() => setStep(Math.max(0, step - 1))}>Back</ActionButton>
           ) : null}
@@ -211,5 +217,6 @@ export default function OnboardingScreen() {
         </View>
       </View>
     </View>
+    </SafeAreaView>
   );
 }

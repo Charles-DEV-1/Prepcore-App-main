@@ -17,6 +17,16 @@ export type DashboardData = {
   rank: string;
 };
 
+function formatExamGoals(value: unknown): string | null {
+  const goals = (Array.isArray(value) ? value : typeof value === 'string' ? [value] : [])
+    .map(goal => String(goal).trim().toUpperCase())
+    .filter(Boolean);
+  if (goals.includes('BOTH')) return 'JAMB & WAEC Preparation';
+  if (goals.includes('JAMB') && goals.includes('WAEC')) return 'JAMB & WAEC Preparation';
+  if (goals.includes('JAMB') || goals.includes('WAEC')) return `${goals[0]} Preparation`;
+  return null;
+}
+
 export async function getDashboardData(userId: string): Promise<DashboardData> {
   const [sessionsResult, profileResult, pointsResult, streak] = await Promise.all([
     supabase.from('sessions').select('id,score,mode').eq('user_id', userId),
@@ -46,7 +56,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     mockExamCount: sessions.filter(session => session.mode === 'mock').length,
     streak,
     examType: profile?.exam_type ?? null,
-    examGoals: profile?.exam_goals ?? null,
+    examGoals: formatExamGoals(profile?.exam_goals),
     isPro: profile?.is_pro ?? false,
     recommendation,
     hasSessions: completed.length > 0,

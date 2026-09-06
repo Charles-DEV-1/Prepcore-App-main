@@ -8,6 +8,8 @@ import { BrandMark, PillTabs } from '../src/components/PrepcoreUI';
 import { CardSkeleton } from '../src/components/LoadingSkeleton';
 import { EmptyState } from '../src/components/EmptyState';
 import { colors, radii } from '../src/constants/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { space } from '../src/constants/spacing';
 
 export default function LeaderboardScreen() {
   const { user } = useAuth();
@@ -30,11 +32,11 @@ export default function LeaderboardScreen() {
   useEffect(() => { void load(); }, [load]);
   if (loading) return <View className="flex-1 bg-white p-5"><CardSkeleton count={5} /></View>;
 
-  return <ScreenScrollView className="flex-1 bg-white px-5 pt-10" contentContainerStyle={{ paddingBottom: 80 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#2563EB" colors={['#2563EB']} />}>
+  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}><ScreenScrollView className="flex-1 bg-white px-5 pt-10" style={{ backgroundColor: colors.background, paddingHorizontal: space.medium }} contentContainerStyle={{ paddingBottom: 80 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.primary} colors={[colors.primary]} />}>
     <BrandMark size={44} />
-    <View className="mx-auto mt-8 w-72"><PillTabs options={['Weekly', 'All-time']} value={range} onChange={setRange} /></View>
-    <Text className="mt-7 text-center text-5xl font-extrabold" style={{ color: colors.text }}>Leaderboard</Text>
-    {!entries.length ? <EmptyState icon="trophy-outline" title="No leaderboard entry yet" description={range === 'Weekly' ? "Join this week's quiz to see your rank." : 'Points will appear here as learners complete sessions.'} /> : <View style={{ marginTop: 28, gap: 10 }}>{entries.map((entry, index) => <View key={entry.user_id} className="flex-row items-center rounded-2xl px-4 py-4" style={{ backgroundColor: entry.is_me ? '#E4F1FF' : colors.white, borderWidth: 1, borderColor: colors.softLine }}><Text className="w-10 text-xl" style={{ color: colors.text }}>{index + 1}</Text><View className="h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: entry.is_me ? colors.primary : index < 3 ? '#F59E0B' : colors.success }}><Text className="text-xl font-extrabold text-white">{entry.user_name.charAt(0)}</Text></View><View className="ml-4 flex-1"><Text className="text-base font-bold" style={{ color: colors.text }}>{entry.is_me ? 'You' : entry.user_name}</Text><Text style={{ color: colors.muted }}>{entry.rank_name}</Text></View><Text className="text-base font-bold" style={{ color: colors.text }}>{range === 'Weekly' ? `${entry.score}/${entry.total_questions}` : `${entry.score} pts`}</Text></View>)}</View>}
-    {entries.find(entry => entry.is_me) ? <View className="mt-4 rounded-2xl px-4 py-3" style={{ backgroundColor: colors.primarySoft, borderRadius: radii.md }}><Text style={{ color: colors.primary, fontWeight: '700' }}>Your rank: #{entries.findIndex(entry => entry.is_me) + 1}</Text></View> : null}
-  </ScreenScrollView>;
+    <View style={{ alignSelf: 'center', marginTop: space.xl, width: 240 }}><PillTabs options={['Weekly', 'All-time']} value={range} onChange={setRange} /></View>
+    <Text style={{ marginTop: space.xl, textAlign: 'center', color: colors.ink, fontSize: 24, fontWeight: '700' }}>Leaderboard</Text>
+    {!entries.length ? <View style={{ marginTop: space.xl }}><EmptyState icon="trophy-outline" title="No leaderboard entry yet" description={range === 'Weekly' ? "Join this week's quiz to see your rank." : 'Points will appear here as learners complete sessions.'} /></View> : <View style={{ marginTop: space.xl, gap: 10 }}>{entries.map((entry, index) => <View key={entry.user_id} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: radii.large, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: entry.is_me ? colors.primarySoft : colors.surface, borderWidth: 1, borderColor: colors.softLine }}><Text style={{ width: 24, color: colors.textSecondary, fontSize: 14, fontWeight: '700' }}>{index + 1}</Text><View style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: entry.is_me ? colors.primary : index < 3 ? '#F59E0B' : colors.success }}><Text style={{ color: colors.white, fontSize: 16, fontWeight: '700' }}>{entry.user_name.charAt(0)}</Text></View><View style={{ marginLeft: space.md, flex: 1 }}><Text style={{ color: colors.ink, fontSize: 15, fontWeight: '700' }}>{entry.is_me ? 'You' : entry.user_name}</Text><Text style={{ color: colors.textSecondary, fontSize: 12 }}>{entry.rank_name}</Text></View><Text style={{ color: colors.ink, fontSize: 14, fontWeight: '700' }}>{range === 'Weekly' ? `${entry.score}/${entry.total_questions}` : `${entry.score} pts`}</Text></View>)}</View>}
+    {entries.find(entry => entry.is_me) ? <View style={{ marginTop: space.lg, borderRadius: radii.large, paddingHorizontal: space.lg, paddingVertical: space.md, backgroundColor: colors.primarySoft }}><Text style={{ color: colors.primary, fontWeight: '700' }}>Your rank: #{entries.findIndex(entry => entry.is_me) + 1}</Text></View> : null}
+  </ScreenScrollView></SafeAreaView>;
 }

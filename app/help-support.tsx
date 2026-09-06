@@ -7,6 +7,7 @@ import { ScreenScrollView } from '../src/components/ScreenScrollView';
 import { Card } from '../src/components/PrepcoreUI';
 import { colors } from '../src/constants/theme';
 import { space } from '../src/constants/spacing';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const faqs = [
   ['How do I start a practice session?', 'Open Practice, choose JAMB or WAEC, then tap the subject you want to study.'],
@@ -33,6 +34,7 @@ export default function HelpSupportScreen() {
   }
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }}>
     <ScreenScrollView className="flex-1 pt-8" style={{ backgroundColor: colors.page, paddingHorizontal: space.medium }} contentContainerStyle={{ paddingBottom: 100 }}>
       <View className="flex-row items-center">
         <Pressable onPress={() => router.back()} className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: colors.white }}>
@@ -62,11 +64,11 @@ export default function HelpSupportScreen() {
 
       <Text style={{ marginTop: space.large, color: colors.ink, fontSize: 16, fontWeight: '600', lineHeight: 24 }}>Still need help?</Text>
       <Card style={{ marginTop: space.small }}>
-        <Pressable onPress={() => Linking.openURL('mailto:support@prepcore.com.ng')} className="flex-row items-center" style={{ paddingVertical: 14 }}>
+        <Pressable onPress={() => Linking.openURL('mailto:prepcoreng@gmail.com')} className="flex-row items-center" style={{ paddingVertical: 14 }}>
           <View className="h-11 w-11 items-center justify-center rounded-full" style={{ backgroundColor: colors.primarySoft }}>
             <Ionicons name="mail-outline" size={22} color={colors.primary} />
           </View>
-          <Text style={{ marginLeft: space.medium, color: colors.primary, fontSize: 14, fontWeight: '600', lineHeight: 21 }}>support@prepcore.com.ng</Text>
+          <Text style={{ marginLeft: space.medium, color: colors.primary, fontSize: 14, fontWeight: '600', lineHeight: 21 }}>prepcoreng@gmail.com</Text>
         </Pressable>
         <View className="h-px" style={{ backgroundColor: colors.softLine }} />
         <Pressable onPress={() => Linking.openURL('whatsapp://send?text=Hello%20Prepcore%20support')} className="flex-row items-center" style={{ paddingVertical: 14 }}>
@@ -77,5 +79,6 @@ export default function HelpSupportScreen() {
         </Pressable>
       </Card>
     </ScreenScrollView>
+    </SafeAreaView>
   );
 }

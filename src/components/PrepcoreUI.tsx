@@ -1,13 +1,14 @@
 // Prepcore - UI Polish
 import type { ComponentProps, ReactNode } from 'react';
-import { Pressable, Text, View, type PressableProps, type ViewStyle } from 'react-native';
+import { Pressable, Text, TextInput, View, type PressableProps, type TextInputProps, type ViewStyle } from 'react-native';
+import { MotionContainer, MotionPressable } from './AnimatedMotion';
 import { AntDesign, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, radii, shadow } from '../constants/theme';
-import { polishedCard } from '../constants/spacing';
+import { polishedCard, space } from '../constants/spacing';
 
 type ButtonProps = PressableProps & {
   children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
 };
 
 export function BrandMark({ size = 48, showName = false, dark = false }: { size?: number; showName?: boolean; dark?: boolean }) {
@@ -26,7 +27,7 @@ export function BrandMark({ size = 48, showName = false, dark = false }: { size?
         <Text style={{ color: colors.white, fontSize: size * 0.58, fontWeight: '900', lineHeight: size * 0.72 }}>P</Text>
       </View>
       {showName ? (
-        <Text className="ml-3 text-3xl font-extrabold" style={{ color: dark ? colors.white : colors.text }}>
+        <Text className="ml-3" style={{ color: dark ? colors.white : colors.text, fontSize: Math.max(14, size * 0.34), fontWeight: '700' }}>
           prepcore
         </Text>
       ) : null}
@@ -36,37 +37,87 @@ export function BrandMark({ size = 48, showName = false, dark = false }: { size?
 
 export function Card({ children, className = '', style }: { children: ReactNode; className?: string; style?: ViewStyle }) {
   return (
-    <View className={`bg-white ${className}`} style={[polishedCard, { borderWidth: 1, borderColor: colors.softLine }, style]}>
-      {children}
-    </View>
+    <MotionContainer delay={40} distance={10} style={[{ width: '100%' }]}>
+      <View className={`bg-white ${className}`} style={[polishedCard, { borderWidth: 1, borderColor: colors.softLine }, style]}>
+        {children}
+      </View>
+    </MotionContainer>
+  );
+}
+
+export function AppTextInput({ style, ...props }: TextInputProps) {
+  return (
+    <TextInput
+      {...props}
+      style={[
+        {
+          minHeight: 48,
+          borderRadius: radii.large,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          paddingHorizontal: space.lg,
+          color: colors.text,
+          fontSize: 15,
+          paddingVertical: space.sm
+        },
+        style
+      ]}
+      placeholderTextColor={props.placeholderTextColor ?? colors.muted}
+    />
+  );
+}
+
+export function IconButton({ icon, onPress, size = 44, tint = colors.primary }: { icon: ReactNode; onPress?: () => void; size?: number; tint?: string }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        height: size,
+        width: size,
+        borderRadius: radii.pill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.softLine
+      }}
+    >
+      <View>{icon}</View>
+    </Pressable>
   );
 }
 
 export function ActionButton({ children, variant = 'primary', disabled, className = '', ...props }: ButtonProps & { className?: string }) {
   const palette = {
     primary: { bg: colors.primary, border: colors.primary, text: colors.white },
-    secondary: { bg: colors.primarySoft, border: colors.primarySoft, text: colors.primary },
-    outline: { bg: colors.white, border: colors.line, text: colors.text },
-    danger: { bg: colors.dangerSoft, border: colors.danger, text: colors.danger }
+    secondary: { bg: colors.primarySoft, border: colors.primaryLight, text: colors.primary },
+    outline: { bg: colors.white, border: colors.border, text: colors.text },
+    danger: { bg: colors.danger, border: colors.danger, text: colors.white },
+    ghost: { bg: 'transparent', border: 'transparent', text: colors.primary }
   }[variant];
 
   return (
-    <Pressable
+    <MotionPressable
       disabled={disabled}
-      className={`items-center justify-center px-5 py-4 ${className}`}
+      className={`items-center justify-center ${className}`}
       style={{
-        minHeight: 56,
-        borderRadius: radii.md,
-        backgroundColor: disabled ? '#CBD5E1' : palette.bg,
-        borderWidth: variant === 'primary' ? 0 : 1,
-        borderColor: disabled ? '#CBD5E1' : palette.border
+        minHeight: 48,
+        paddingHorizontal: space.xl,
+        paddingVertical: space.md,
+        borderRadius: radii.large,
+        backgroundColor: disabled ? colors.divider : palette.bg,
+        borderWidth: variant === 'primary' || variant === 'danger' ? 0 : 1,
+        borderColor: disabled ? colors.divider : palette.border,
+        opacity: disabled ? 0.7 : 1
       }}
+      contentStyle={{ width: '100%' }}
       {...props}
     >
-      <Text className="text-base font-bold" style={{ color: disabled ? colors.white : palette.text }}>
+      <Text style={{ color: disabled ? colors.white : palette.text, fontSize: 16, fontWeight: '700', lineHeight: 22 }}>
         {children}
       </Text>
-    </Pressable>
+    </MotionPressable>
   );
 }
 
@@ -80,14 +131,14 @@ export function StepDots({ total, active }: { total: number; active: number }) {
             style={{
               height: 34,
               width: 34,
-              backgroundColor: index === active ? colors.primary : '#D8DCE3'
+              backgroundColor: index === active ? colors.primary : colors.divider
             }}
           >
-            <Text className="font-bold" style={{ color: index === active ? colors.white : colors.muted }}>
+            <Text style={{ color: index === active ? colors.white : colors.textSecondary, fontSize: 14, fontWeight: '700' }}>
               {index + 1}
             </Text>
           </View>
-          {index < total - 1 ? <View className="mx-2 h-1 w-5 rounded-full" style={{ backgroundColor: '#D8DCE3' }} /> : null}
+          {index < total - 1 ? <View className="mx-2 h-1 w-5 rounded-full" style={{ backgroundColor: colors.divider }} /> : null}
         </View>
       ))}
     </View>
@@ -96,17 +147,17 @@ export function StepDots({ total, active }: { total: number; active: number }) {
 
 export function PillTabs({ options, value, onChange }: { options: string[]; value: string; onChange: (value: string) => void }) {
   return (
-    <View className="flex-row rounded-2xl p-1" style={{ backgroundColor: '#ECEEF4' }}>
+    <View className="flex-row" style={{ backgroundColor: colors.surfaceSecondary, borderRadius: radii.large, padding: 4 }}>
       {options.map(option => {
         const selected = option === value;
         return (
           <Pressable
             key={option}
             onPress={() => onChange(option)}
-            className="flex-1 items-center justify-center py-3"
-            style={{ borderRadius: radii.sm, backgroundColor: selected ? colors.white : 'transparent' }}
+            className="flex-1 items-center justify-center"
+            style={{ borderRadius: radii.medium, backgroundColor: selected ? colors.white : 'transparent', minHeight: 40, paddingHorizontal: space.sm }}
           >
-            <Text className="text-base font-bold" style={{ color: selected ? colors.ink : colors.muted }}>
+            <Text style={{ color: selected ? colors.primary : colors.textSecondary, fontSize: 14, fontWeight: '700' }}>
               {option}
             </Text>
           </Pressable>
@@ -133,7 +184,7 @@ const subjectIconMap: Record<string, { lib: 'fa' | 'mc' | 'ion' | 'ad'; name: st
 
 export function SubjectIcon({ subject, selected = false, size = 22 }: { subject: string; selected?: boolean; size?: number }) {
   const icon = subjectIconMap[subject] ?? { lib: 'ion', name: 'book-outline' };
-  const color = selected ? colors.white : colors.ink;
+  const color = selected ? colors.white : colors.primary;
   const iconProps = { size, color };
 
   return (
@@ -142,8 +193,8 @@ export function SubjectIcon({ subject, selected = false, size = 22 }: { subject:
       style={{
         height: 42,
         width: 42,
-        borderRadius: 12,
-        backgroundColor: selected ? 'rgba(255,255,255,0.18)' : colors.primarySoft
+        borderRadius: radii.medium,
+        backgroundColor: selected ? colors.primary : colors.primarySoft
       }}
     >
       {icon.lib === 'fa' ? <FontAwesome5 name={icon.name as ComponentProps<typeof FontAwesome5>['name']} {...iconProps} /> : null}
@@ -156,15 +207,15 @@ export function SubjectIcon({ subject, selected = false, size = 22 }: { subject:
 
 export function StatTile({ icon, value, label, tint = colors.primary }: { icon: ReactNode; value: string; label: string; tint?: string }) {
   return (
-    <Card className="flex-1 justify-between" style={{ minHeight: 90 }}>
+    <Card className="flex-1 justify-between" style={{ minHeight: 96, padding: space.lg }}>
       <View className="h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: `${tint}1A` }}>
         {icon}
       </View>
       <View>
-        <Text className="text-2xl font-extrabold" style={{ color: colors.ink, lineHeight: 36 }}>
+        <Text style={{ color: colors.ink, fontSize: 20, fontWeight: '700', lineHeight: 28 }}>
           {value}
         </Text>
-        <Text className="mt-1 text-sm" style={{ color: colors.text, lineHeight: 21 }}>
+        <Text style={{ marginTop: 4, color: colors.textSecondary, fontSize: 13, lineHeight: 18 }}>
           {label}
         </Text>
       </View>
