@@ -9,87 +9,31 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    let hydrationCompleted = false;
-
-    const handleHydrationComplete = (nextSession: Session | null, nextUser: User | null = nextSession?.user ?? null) => {
-      if (!mounted || hydrationCompleted) return;
-
-      hydrationCompleted = true;
-      setSession(nextSession);
-      setUser(nextUser);
-      setIsLoading(false);
-    };
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
-      console.log('useAuth: Auth state changed:', _event);
+      if (__DEV__) console.log('[AUTH] auth state changed:', event, { hasSession: Boolean(nextSession), userId: nextSession?.user?.id ?? null });
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
-
-      if (_event === 'INITIAL_SESSION' || _event === 'SIGNED_IN' || _event === 'SIGNED_OUT') {
-        handleHydrationComplete(nextSession, nextSession?.user ?? null);
-      }
+      if (event === 'INITIAL_SESSION') setIsLoading(false);
     });
 
     async function loadSession() {
       try {
-        console.log('useAuth: Starting session load...');
-
-        timeout = setTimeout(() => {
-          if (mounted) {
-            console.warn('useAuth: Session load timeout, continuing with no session');
-            setSession(null);
-            setUser(null);
-            handleHydrationComplete(null);
-          }
-        }, 8000);
-
         const { data, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.warn('useAuth: getSession error:', error.message);
-        }
-
         if (!mounted) return;
-
-        console.log('useAuth: Session loaded:', !!data.session);
+        if (error) throw error;
+        if (__DEV__) console.log('[AUTH] initial session:', { hasSession: Boolean(data.session), userId: data.session?.user?.id ?? null });
         setSession(data.session ?? null);
         setUser(data.session?.user ?? null);
-
-        if (data.session) {
-          handleHydrationComplete(data.session);
-          return;
-        }
-
-        const {
-          data: userData,
-          error: userError
-        } = await supabase.auth.getUser();
-
-        if (!mounted) return;
-
-        if (userError) {
-          console.warn('useAuth: getUser fallback error:', userError.message);
-          return;
-        }
-
-        if (userData.user) {
-          console.log('useAuth: Resolved auth state from getUser fallback for user:', userData.user.id);
-          setSession(null);
-          setUser(userData.user);
-          handleHydrationComplete(null, userData.user);
-        }
+        setIsLoading(false);
       } catch (err) {
-        console.warn('useAuth: getSession exception:', err);
+        if (__DEV__) console.warn('[AUTH] initial session error:', err instanceof Error ? err.message : err);
         if (mounted) {
           setSession(null);
           setUser(null);
-          handleHydrationComplete(null);
+          setIsLoading(false);
         }
-      } finally {
-        if (timeout) clearTimeout(timeout);
       }
     }
 
@@ -97,7 +41,6 @@ export function useAuth() {
 
     return () => {
       mounted = false;
-      if (timeout) clearTimeout(timeout);
       listener.subscription.unsubscribe();
     };
   }, []);

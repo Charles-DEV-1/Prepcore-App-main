@@ -51,6 +51,8 @@ export default function FlashcardsScreen() {
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
   const [subject, setSubject] = useState<LiveSubject | null>(null);
+  const [subjectOptions, setSubjectOptions] = useState<LiveSubject[]>([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [stats, setStats] = useState({ known: 0, review: 0, bookmarked: 0, total: 0 });
   const [swipeFeedback, setSwipeFeedback] = useState<string | null>(null);
   const card = cards[index];
@@ -63,7 +65,9 @@ export default function FlashcardsScreen() {
       setLoading(true);
       try {
         const [subjects, progressStats] = await Promise.all([getSubjectsWithQuestionCounts('JAMB'), getFlashcardProgressStats()]);
-        const firstSubject = subjects.find(item => item.questionCount > 0) ?? null;
+        const available = subjects.filter(item => item.questionCount > 0);
+        const firstSubject = available.find(item => item.id === selectedSubjectId) ?? available[0] ?? null;
+        if (mounted) { setSubjectOptions(available); if (!selectedSubjectId && firstSubject) setSelectedSubjectId(firstSubject.id); }
         if (!firstSubject) { if (mounted) { setSubject(null); setCards([]); setStats(progressStats); } return; }
         const data = await loadFlashcards(firstSubject.id);
         if (mounted) { setSubject(firstSubject); setCards(data as Flashcard[]); setStats(progressStats); }
@@ -77,7 +81,7 @@ export default function FlashcardsScreen() {
     return () => {
       mounted = false;
     };
-  }, [plan.isPro]);
+  }, [plan.isPro, selectedSubjectId]);
 
   async function mark(status: 'got_it' | 'review' | 'bookmark' | 'difficult') {
     const activeCard = card;
@@ -127,6 +131,8 @@ export default function FlashcardsScreen() {
       <Text style={{ color: colors.ink, fontSize: 24, fontWeight: '700' }}>Flashcards</Text>
       <Text style={{ marginTop: space.sm, color: colors.textSecondary }}>{subject ? `Pro deck for ${subject.label}.` : 'No live flashcard deck is available yet.'}</Text>
 
+      {subjectOptions.length ? <ScrollSubjectOptions options={subjectOptions} selectedId={selectedSubjectId} onSelect={id => { setIndex(0); setFlipped(false); setSelectedSubjectId(id); }} /> : null}
+
       <Card style={{ marginTop: space.md }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Text style={{ color: colors.ink, fontSize: 15, fontWeight: '700' }}>Progress</Text>
@@ -174,6 +180,10 @@ export default function FlashcardsScreen() {
     </ScreenScrollView>
     </SafeAreaView>
   );
+}
+
+function ScrollSubjectOptions({ options, selectedId, onSelect }: { options: LiveSubject[]; selectedId: string | null; onSelect: (id: string) => void }) {
+  return <View style={{ marginTop: space.lg, flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>{options.map(option => <Pressable key={option.id} onPress={() => onSelect(option.id)} style={{ borderRadius: radii.pill, paddingHorizontal: 13, paddingVertical: 9, backgroundColor: option.id === selectedId ? colors.primary : colors.primarySoft }}><Text style={{ color: option.id === selectedId ? colors.white : colors.primary, fontSize: 12, fontWeight: '800' }}>{option.label}</Text></Pressable>)}</View>;
 }
 
 const styles = StyleSheet.create({

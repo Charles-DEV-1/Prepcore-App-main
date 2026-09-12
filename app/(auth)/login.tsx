@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, Pressable, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ensureUserProfile } from '../../src/services/auth';
+import { ensureUserProfile, getOnboardingStatus, sendSignInMagicLink, AUTH_REDIRECT_URL } from '../../src/services/auth';
+import { clearPendingOnboarding } from '../../src/services/onboarding';
 import { ActionButton, BrandMark } from '../../src/components/PrepcoreUI';
 import { colors, radii, shadow } from '../../src/constants/theme';
 import { space } from '../../src/constants/spacing';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const redirectTo = 'prepcore://auth/callback';
+const redirectTo = AUTH_REDIRECT_URL;
 const REFERRAL_STORAGE_KEY = 'prepcore_referral_code';
 const NEXT_STORAGE_KEY = 'prepcore_next_path';
 
@@ -33,13 +33,32 @@ function getParamsFromUrl(url: string) {
 }
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function resumeExistingSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted || !session) return;
+
+      try {
+        const isOnboarded = await getOnboardingStatus();
+        router.replace(isOnboarded ? '/(tabs)/dashboard' : '/(auth)/onboarding');
+      } catch {
+        // Keep the login form visible if a persisted session cannot be verified.
+      }
+    }
+
+    void resumeExistingSession();
+    return () => { mounted = false; };
+  }, [router]);
 
   useEffect(() => {
     async function captureReferralAndNext() {
@@ -68,7 +87,8 @@ export default function LoginScreen() {
       router.replace(nextPath);
       return;
     }
-    router.replace('/');
+    const isOnboarded = await getOnboardingStatus();
+    router.replace(isOnboarded ? '/(tabs)/dashboard' : '/(auth)/onboarding');
   }
 
   async function handleGoogleSignIn() {
@@ -77,6 +97,7 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
+      await clearPendingOnboarding();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -140,47 +161,18 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleSendOtp() {
+  async function handleMagicLinkSignIn() {
     setError(null);
     setStatus(null);
     setLoading(true);
 
     try {
-      const normalizedPhone = `+234${phone.replace(/[^0-9]/g, '').replace(/^0+/, '')}`;
-      const { error } = await supabase.auth.signInWithOtp({ phone: normalizedPhone });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      setOtpSent(true);
-      setStatus('OTP sent. Enter the code from your SMS.');
+      await clearPendingOnboarding();
+      await sendSignInMagicLink(email);
+      setMagicLinkSent(true);
+      setStatus('Check your email for a secure sign-in link.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to send OTP.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp() {
-    setError(null);
-    setStatus(null);
-    setLoading(true);
-
-    try {
-      const normalizedPhone = `+234${phone.replace(/[^0-9]/g, '').replace(/^0+/, '')}`;
-      const { data, error } = await supabase.auth.verifyOtp({ phone: normalizedPhone, token: otp, type: 'sms' });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      if (!data.session) {
-        setError('OTP verification failed. Please try again.');
-        return;
-      }
-      await ensureUserProfile();
-      await routeAfterAuth();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to verify OTP.');
+      setError(err instanceof Error ? err.message : 'Unable to send sign-in link.');
     } finally {
       setLoading(false);
     }
@@ -188,45 +180,36 @@ export default function LoginScreen() {
 
   return (
     <View className="flex-1 bg-white px-6">
-      <View className="absolute left-0 right-0 top-0 h-56" style={{ backgroundColor: colors.primarySoft }} />
+      <View className="absolute left-0 right-0 top-0 h-72" style={{ backgroundColor: colors.primarySoft }} />
       <View className="flex-1 justify-center">
         <View className="items-center">
           <BrandMark size={86} />
-          <Text className="mt-28 text-center text-5xl font-extrabold" style={{ color: colors.ink }}>Welcome back</Text>
+          <Text className="mt-8 text-center text-4xl font-extrabold" style={{ color: colors.ink }}>{showSignIn ? 'Welcome back' : 'Your prep, personalized'}</Text>
+          <Text className="mt-3 max-w-sm text-center text-base" style={{ color: colors.textSecondary }}>{showSignIn ? 'Sign in to continue your preparation.' : 'Build a focused study plan for your JAMB subjects.'}</Text>
         </View>
 
+        {!showSignIn ? <View className="mt-12"><ActionButton onPress={() => router.push('/(auth)/onboarding')}>Get Started</ActionButton><Text className="mt-4 text-center text-sm" style={{ color: colors.textSecondary }}>Choose your subjects first, then save your plan.</Text></View> : <>
         <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="Phone number"
+          value={email}
+          onChangeText={value => { setEmail(value); setMagicLinkSent(false); }}
+          placeholder="Email address"
           placeholderTextColor="#A3AAB5"
-          keyboardType="phone-pad"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
           className="mt-10 bg-white px-5 text-lg"
           style={{ minHeight: 58, borderRadius: radii.md, color: colors.text, ...shadow }}
         />
-        {otpSent ? (
-          <TextInput
-            value={otp}
-            onChangeText={setOtp}
-            placeholder="OTP code"
-            placeholderTextColor="#A3AAB5"
-            keyboardType="number-pad"
-            className="mt-4 bg-white px-5 text-lg"
-            style={{ minHeight: 58, borderRadius: radii.md, borderWidth: 1, borderColor: colors.primary, color: colors.text }}
-          />
-        ) : null}
 
         <ActionButton
           className="mt-7"
-          onPress={otpSent ? handleVerifyOtp : handleSendOtp}
-          disabled={loading || (!phone && !otpSent) || (otpSent && !otp)}
+          onPress={handleMagicLinkSignIn}
+          disabled={loading || !email.trim()}
         >
-          {loading ? 'Please wait...' : otpSent ? 'Verify OTP' : 'Login'}
+          {loading ? 'Please wait...' : 'Send sign-in link'}
         </ActionButton>
 
-        <Pressable className="mt-5 items-center" onPress={() => setOtpSent(false)}>
-          <Text className="text-lg font-bold" style={{ color: colors.primary }}>Forgot password?</Text>
-        </Pressable>
+        {magicLinkSent ? <Pressable className="mt-5 items-center" onPress={handleMagicLinkSignIn} disabled={loading}><Text className="text-base font-bold" style={{ color: colors.primary }}>Resend sign-in link</Text></Pressable> : null}
 
         <View className="my-8 flex-row items-center">
           <View className="h-px flex-1" style={{ backgroundColor: colors.line }} />
@@ -247,12 +230,10 @@ export default function LoginScreen() {
         {status ? <Text className="mt-5 text-center text-sm" style={{ color: colors.success }}>{status}</Text> : null}
         {error ? <Text className="mt-5 text-center text-sm" style={{ color: colors.danger }}>{error}</Text> : null}
 
-        <View className="mt-10 flex-row justify-center">
-          <Text className="text-lg" style={{ color: colors.text }}>Don{"'"}t have an account? </Text>
-          <Pressable onPress={() => router.push('/(auth)/onboarding')}>
-            <Text className="text-lg font-bold" style={{ color: colors.primary }}>Sign up</Text>
-          </Pressable>
-        </View>
+        </>}
+        <Pressable className="mt-10 items-center" onPress={() => { setShowSignIn(value => !value); setError(null); setStatus(null); setMagicLinkSent(false); }}>
+          <Text className="text-center text-base font-bold" style={{ color: colors.primary }}>{showSignIn ? 'Back to Get Started' : 'Sign In'}</Text>
+        </Pressable>
       </View>
     </View>
   );

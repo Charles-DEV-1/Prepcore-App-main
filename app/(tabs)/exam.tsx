@@ -1,6 +1,6 @@
 // Prepcore — Live Data & Polish
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, Pressable, ScrollView } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, ScrollView, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,6 +41,9 @@ export default function MockExamScreen() {
   const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null);
   const [skippedIds, setSkippedIds] = useState<Record<string, boolean>>({});
+  const [flaggedIds, setFlaggedIds] = useState<Record<string, boolean>>({});
+  const [mapOpen, setMapOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -107,6 +110,7 @@ export default function MockExamScreen() {
       setQuestions(loaded);
       setAnswers({});
       setSkippedIds({});
+      setFlaggedIds({});
       setIndex(0);
       setSelected(null);
       setActiveSubjectId(loaded[0]?.subject_id ?? selectedSubjectIds[0] ?? null);
@@ -154,7 +158,7 @@ export default function MockExamScreen() {
       setSelected(nextSubjectQuestion ? nextAnswers[nextSubjectQuestion.id] ?? null : null);
       return;
     }
-    finishExam(nextAnswers);
+    setSubmitOpen(true);
   }
 
   function handlePrevious() {
@@ -210,6 +214,7 @@ export default function MockExamScreen() {
 
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
   const secs = (seconds % 60).toString().padStart(2, '0');
+  const timerColor = seconds <= 600 ? colors.danger : seconds <= 1800 ? colors.warning : colors.text;
   const chosenSubjects = availableSubjects.filter(subject => selectedSubjectIds.includes(subject.id));
 
   if (phase === 'submitting') {
@@ -238,8 +243,14 @@ export default function MockExamScreen() {
             <Text style={{ flex: 1, color: colors.ink, fontSize: 18, fontWeight: '700' }}>{examType} Mock Exam</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <CalculatorButton onPress={() => setCalculatorOpen(true)} />
-              <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: colors.dangerSoft }}>
-                <Text style={{ color: '#B42318', fontSize: 14, fontWeight: '700' }}>{minutes}:{secs}</Text>
+              <Pressable onPress={() => { if (question?.id) setFlaggedIds(current => ({ ...current, [question.id]: !current[question.id] })); }} style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: question?.id && flaggedIds[question.id] ? colors.warningSoft : colors.surface, borderWidth: 1, borderColor: colors.line }}>
+                <Ionicons name={question?.id && flaggedIds[question.id] ? 'flag' : 'flag-outline'} size={20} color={colors.warning} />
+              </Pressable>
+              <Pressable onPress={() => setMapOpen(true)} style={{ height: 40, width: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 999, backgroundColor: colors.primarySoft }}>
+                <Ionicons name="grid-outline" size={20} color={colors.primary} />
+              </Pressable>
+              <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: seconds <= 600 ? colors.dangerSoft : seconds <= 1800 ? colors.warningSoft : colors.primarySoft }}>
+                <Text style={{ color: timerColor, fontSize: 14, fontWeight: '700' }}>{minutes}:{secs}</Text>
               </View>
             </View>
           </View>
@@ -295,8 +306,30 @@ export default function MockExamScreen() {
               <Ionicons name="play-skip-forward-outline" size={22} color={colors.text} />
             </Pressable>
             <View style={{ flex: 1 }}><ActionButton variant="outline" disabled={index === 0} onPress={handlePrevious}>Previous</ActionButton></View>
-            <View style={{ flex: 1 }}><ActionButton disabled={!selected} onPress={handleNext}>{index === questions.length - 1 ? 'Submit' : 'Next'}</ActionButton></View>
+            <View style={{ flex: 1 }}><ActionButton disabled={!selected} onPress={handleNext}>{index === questions.length - 1 ? 'Review & submit' : 'Next'}</ActionButton></View>
           </View>
+          <Modal visible={mapOpen} transparent animationType="slide" onRequestClose={() => setMapOpen(false)}>
+            <Pressable onPress={() => setMapOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.35)' }}>
+              <Pressable onPress={event => event.stopPropagation()} style={{ maxHeight: '70%', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: space.lg, backgroundColor: colors.surface }}>
+                <Text style={{ color: colors.ink, fontSize: 18, fontWeight: '800' }}>Question map</Text>
+                <Text style={{ marginTop: 4, color: colors.muted }}>Blue answered · amber flagged · gray unanswered</Text>
+                <View style={{ marginTop: space.lg, flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+                  {questions.map((item, itemIndex) => <Pressable key={item.id} onPress={() => { setIndex(itemIndex); setSelected(answers[item.id] ?? null); setMapOpen(false); }} style={{ height: 42, width: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: flaggedIds[item.id] ? colors.warningSoft : answers[item.id] ? colors.primarySoft : colors.surface, borderWidth: 1, borderColor: flaggedIds[item.id] ? colors.warning : answers[item.id] ? colors.primary : colors.line }}><Text style={{ color: flaggedIds[item.id] ? colors.warning : answers[item.id] ? colors.primary : colors.text, fontWeight: '800' }}>{itemIndex + 1}</Text></Pressable>)}
+                </View>
+                <ActionButton className="mt-6" onPress={() => setMapOpen(false)}>Close map</ActionButton>
+              </Pressable>
+            </Pressable>
+          </Modal>
+          <Modal visible={submitOpen} transparent animationType="fade" onRequestClose={() => setSubmitOpen(false)}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: space.xl, backgroundColor: 'rgba(15,23,42,0.45)' }}>
+              <View style={{ width: '100%', borderRadius: 24, padding: space.xl, backgroundColor: colors.surface }}>
+                <Text style={{ color: colors.ink, fontSize: 20, fontWeight: '800' }}>Submit your exam?</Text>
+                <Text style={{ marginTop: space.sm, color: colors.textSecondary }}>You answered {answeredCount} of {questions.length}. {remainingCount} question{remainingCount === 1 ? '' : 's'} will remain unanswered.</Text>
+                <ActionButton className="mt-6" onPress={() => { setSubmitOpen(false); void finishExam(answers); }}>Submit now</ActionButton>
+                <ActionButton variant="outline" className="mt-3" onPress={() => setSubmitOpen(false)}>Continue exam</ActionButton>
+              </View>
+            </View>
+          </Modal>
         </View>
       </SafeAreaView>
     );

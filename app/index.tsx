@@ -12,16 +12,15 @@ export default function Index() {
 
   useEffect(() => {
     let mounted = true;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
 
     async function routeUser() {
-      console.log('Index: Auth state - isLoading:', isLoading, 'session:', !!session, 'user:', !!user);
+      if (__DEV__) console.log('[AUTH] navigation decision', { isLoading, hasSession: Boolean(session), hasUser: Boolean(user) });
 
       if (!isLoading) {
         const hasAuthState = Boolean(session || user);
 
         if (!hasAuthState) {
-          console.log('Index: No active auth state, routing to login');
+          if (__DEV__) console.log('[AUTH] no session, navigating to login');
           router.replace('/(auth)/login');
           return;
         }
@@ -32,7 +31,7 @@ export default function Index() {
         );
 
         if (metadataIsOnboarded) {
-          console.log('Index: User is onboarded, routing to dashboard');
+          if (__DEV__) console.log('[AUTH] onboarded user, navigating to dashboard');
           router.replace('/(tabs)/dashboard');
           return;
         }
@@ -43,12 +42,12 @@ export default function Index() {
           const authUserId = session?.user?.id ?? user?.id;
 
           if (!authUserId) {
-            console.warn('Index: No user id available for onboarding lookup');
+            if (__DEV__) console.warn('[AUTH] no user id available for profile lookup');
             router.replace('/(auth)/login');
             return;
           }
 
-          console.log('Index: Checking profile onboarding status for user:', authUserId);
+          if (__DEV__) console.log('[AUTH] checking profile onboarding status');
           const { data, error } = await supabase
             .from('users')
             .select('onboarding_completed')
@@ -56,14 +55,14 @@ export default function Index() {
             .maybeSingle();
 
           if (error) {
-            console.warn('Index: Supabase user query error:', error.message);
+            if (__DEV__) console.warn('[AUTH] profile query error:', error.message);
             throw error;
           }
 
           if (!mounted) return;
 
           const isOnboarded = data?.onboarding_completed === true;
-          console.log('Index: Profile check complete - onboarded:', isOnboarded);
+          if (__DEV__) console.log('[AUTH] profile status', { isOnboarded });
 
           if (!isOnboarded) {
             router.replace('/(auth)/onboarding');
@@ -72,7 +71,7 @@ export default function Index() {
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Unknown error';
-          console.warn('Index: Network or profile check failed:', message);
+          if (__DEV__) console.warn('[AUTH] profile routing failed:', message);
           if (mounted) setErrorMessage('Unable to reach Prepcore servers. Check your internet connection.');
         } finally {
           if (mounted) setCheckingProfile(false);
@@ -82,18 +81,8 @@ export default function Index() {
 
     routeUser();
 
-    // Set a 10-second timeout fallback for network issues
-    timeout = setTimeout(() => {
-      if (mounted && isLoading) {
-        console.warn('Index: Auth load timeout, forcing route to login');
-        setErrorMessage('Taking longer than expected. Continuing...');
-          router.replace('/(auth)/login');
-      }
-    }, 10000);
-
     return () => {
       mounted = false;
-      if (timeout) clearTimeout(timeout);
     };
   }, [isLoading, session, user, router]);
 
