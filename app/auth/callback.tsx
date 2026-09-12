@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../src/lib/supabase';
-import { ensureUserProfile } from '../../src/services/auth';
+import { ensureUserProfile, getOnboardingStatus } from '../../src/services/auth';
+import { completePendingOnboarding } from '../../src/services/onboarding';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -24,16 +25,35 @@ function getParamsFromUrl(url: string) {
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
+  const routeParams = useLocalSearchParams<Record<string, string | string[]>>();
   const [message, setMessage] = useState('Completing sign in...');
 
   useEffect(() => {
-    async function completeAuth() {
-      try {
-        const url = await Linking.getInitialURL();
+    let mounted = true;
+    let handled = false;
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 
+    async function finishAuthenticatedSession() {
+      if (mounted) setMessage('Saving your prep plan...');
+      const profile = await ensureUserProfile();
+      if (!profile) throw new Error('Your session could not be verified. Please try again.');
+      const onboardingCompleted = await completePendingOnboarding();
+      const isOnboarded = onboardingCompleted || await getOnboardingStatus();
+      router.replace(isOnboarded ? '/(tabs)/dashboard' : '/(auth)/onboarding');
+    }
+
+    async function completeAuth(url: string | null) {
+      if (handled) return;
+
+      try {
         if (!url) {
-          setMessage('Missing sign-in response. Please try again.');
-          setTimeout(() => router.replace('/(auth)/login'), 2000);
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            handled = true;
+            await finishAuthenticatedSession();
+            return;
+          }
+          if (mounted) setMessage('Waiting for the verification link...');
           return;
         }
 
@@ -41,11 +61,20 @@ export default function AuthCallbackScreen() {
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
         const code = params.get('code');
+        const tokenHash = params.get('token_hash');
+        const verificationType = params.get('type');
         const errorDescription = params.get('error_description');
         const errorCode = params.get('error_code');
 
+        if (!accessToken && !refreshToken && !code && !tokenHash && !errorDescription && !errorCode) {
+          if (mounted) setMessage('Waiting for the verification link...');
+          return;
+        }
+
+        handled = true;
+
         if (errorDescription || errorCode) {
-          setMessage(errorDescription || errorCode || 'Authentication failed');
+          if (mounted) setMessage(errorDescription || errorCode || 'Authentication failed');
           setTimeout(() => router.replace('/(auth)/login'), 2000);
           return;
         }
@@ -57,7 +86,7 @@ export default function AuthCallbackScreen() {
           });
 
           if (error) {
-            setMessage('Session error: ' + error.message);
+            if (mounted) setMessage('Session error: ' + error.message);
             setTimeout(() => router.replace('/(auth)/login'), 2000);
             return;
           }
@@ -65,8 +94,20 @@ export default function AuthCallbackScreen() {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
 
           if (error) {
-            setMessage('Code exchange failed: ' + error.message);
+            if (mounted) setMessage('Code exchange failed: ' + error.message);
             setTimeout(() => router.replace('/(auth)/login'), 2000);
+            return;
+          }
+        } else if (tokenHash) {
+          const supportedTypes = ['signup', 'magiclink', 'invite', 'recovery', 'email_change'] as const;
+          const type = supportedTypes.includes(verificationType as typeof supportedTypes[number])
+            ? verificationType as typeof supportedTypes[number]
+            : 'signup';
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+
+          if (error) {
+            if (mounted) setMessage('Email verification failed: ' + error.message);
+            fallbackTimer = setTimeout(() => router.replace('/(auth)/login'), 8000);
             return;
           }
         } else {
@@ -75,24 +116,47 @@ export default function AuthCallbackScreen() {
           } = await supabase.auth.getSession();
 
           if (!session) {
-            setMessage('Missing sign-in tokens. Please try again.');
-            setTimeout(() => router.replace('/(auth)/login'), 2000);
+            if (mounted) setMessage('Missing sign-in tokens. Please try again.');
+            fallbackTimer = setTimeout(() => router.replace('/(auth)/login'), 8000);
             return;
           }
         }
 
-        setMessage('Creating profile...');
-        await ensureUserProfile();
-        router.replace('/');
+        await finishAuthenticatedSession();
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unexpected error occurred';
-        setMessage('Error: ' + errorMsg);
+        if (mounted) setMessage('Error: ' + errorMsg);
         setTimeout(() => router.replace('/(auth)/login'), 2000);
       }
     }
 
-    completeAuth();
-  }, [router]);
+    const subscription = Linking.addEventListener('url', event => {
+      if (__DEV__) console.log('[AUTH] deep-link received', { url: event.url.replace(/(access_token|refresh_token|token_hash|code)=[^&]*/g, '$1=[redacted]') });
+      void completeAuth(event.url);
+    });
+    const routeQuery = new URLSearchParams();
+    Object.entries(routeParams).forEach(([key, value]) => {
+      const resolvedValue = Array.isArray(value) ? value[0] : value;
+      if (resolvedValue !== undefined) routeQuery.set(key, resolvedValue);
+    });
+    const routeUrl = routeQuery.toString() ? `prepcore://auth/callback?${routeQuery.toString()}` : null;
+    void Linking.getInitialURL().then(url => {
+      if (__DEV__) console.log('[AUTH] initial deep-link', { hasUrl: Boolean(url), path: url?.split('?')[0] ?? null });
+      void completeAuth(url ?? routeUrl);
+    });
+    fallbackTimer = setTimeout(() => {
+      if (!handled && mounted) {
+        setMessage('The verification link did not reach the app. Please open it again or request a new link.');
+        router.replace('/(auth)/login');
+      }
+    }, 15000);
+
+    return () => {
+      mounted = false;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      subscription.remove();
+    };
+  }, [routeParams, router]);
 
   return (
     <View className="flex-1 items-center justify-center bg-[#185FA5] px-6">

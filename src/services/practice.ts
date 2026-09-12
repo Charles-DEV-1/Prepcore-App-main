@@ -1,6 +1,9 @@
 // Prepcore — Live Data & Polish
 import { supabase } from '../lib/supabase';
 import { updateStreak } from './streak';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const QUESTION_CACHE_TTL = 1000 * 60 * 60 * 12;
 
 export type Question = {
   id: string;
@@ -16,6 +19,17 @@ export type Question = {
 };
 
 export async function loadQuestions(subjectId: string, count = 25, examType = 'jamb'): Promise<Question[]> {
+  const cacheKey = `prepcore:questions:${examType.toLowerCase()}:${subjectId}:${count}`;
+  try {
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached) as { savedAt: number; questions: Question[] };
+      if (Date.now() - parsed.savedAt < QUESTION_CACHE_TTL && parsed.questions.length) return parsed.questions;
+    }
+  } catch {
+    // Continue with the live request when local storage is unavailable.
+  }
+
   const { data, error } = await supabase.functions.invoke('session-questions', {
     body: { subjectId, limit: count, examType: examType.toLowerCase() }
   });
@@ -29,7 +43,9 @@ export async function loadQuestions(subjectId: string, count = 25, examType = 'j
     throw new Error(typeof data?.error === 'string' ? data.error : 'Question service returned an invalid response.');
   }
 
-  return data.questions as Question[];
+  const questions = data.questions as Question[];
+  void AsyncStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), questions }));
+  return questions;
 }
 
 export async function savePracticeSession(

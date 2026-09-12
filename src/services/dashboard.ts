@@ -1,6 +1,9 @@
 // Prepcore — Live Data & Polish
 import { supabase } from '../lib/supabase';
 import { getCurrentStreak } from './streak';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const DASHBOARD_CACHE_TTL = 1000 * 60 * 5;
 
 export type DashboardData = {
   userName: string;
@@ -28,13 +31,18 @@ function formatExamGoals(value: unknown): string | null {
 }
 
 export async function getDashboardData(userId: string): Promise<DashboardData> {
+  const cacheKey = `prepcore:dashboard:${userId}`;
   const [sessionsResult, profileResult, pointsResult, streak] = await Promise.all([
     supabase.from('sessions').select('id,score,mode').eq('user_id', userId),
     supabase.from('users').select('full_name,email,exam_type,exam_goals,is_pro').eq('id', userId).maybeSingle(),
     supabase.from('user_points').select('total_points,rank').eq('user_id', userId).maybeSingle(),
     getCurrentStreak(userId)
   ]);
-  if (sessionsResult.error) throw sessionsResult.error;
+  if (sessionsResult.error) {
+    const cached = await AsyncStorage.getItem(cacheKey);
+    if (cached) return JSON.parse(cached) as DashboardData;
+    throw sessionsResult.error;
+  }
   if (profileResult.error) throw profileResult.error;
   if (pointsResult.error) throw pointsResult.error;
 
@@ -49,7 +57,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
   const completed = sessions.filter(session => session.score !== null);
   const averageScore = completed.length ? Math.round(completed.reduce((sum, session) => sum + (session.score ?? 0), 0) / completed.length) : null;
   const profile = profileResult.data;
-  return {
+  const result = {
     userName: profile?.full_name?.trim() || profile?.email?.split('@')[0] || 'Learner',
     averageScore,
     totalQuestionsAnswered: answerResult.count ?? 0,
@@ -63,6 +71,8 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     totalPoints: pointsResult.data?.total_points ?? 0,
     rank: pointsResult.data?.rank ?? 'Beginner'
   };
+  void AsyncStorage.setItem(cacheKey, JSON.stringify(result));
+  return result;
 }
 
 async function getRecommendation(userId: string): Promise<DashboardData['recommendation']> {

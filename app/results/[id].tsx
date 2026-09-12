@@ -18,6 +18,7 @@ export default function ResultScreen() {
   const router = useRouter();
   const [data, setData] = useState<ResultData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAllWrong, setShowAllWrong] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -57,6 +58,7 @@ export default function ResultScreen() {
   const correctCount = data?.correctCount ?? 0;
   const wrongCount = Math.max(totalQuestions - correctCount, 0);
   const skipped = 0;
+  const wrongAnswers = data?.wrongAnswers ?? [];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#0D1428' }}>
@@ -111,6 +113,19 @@ export default function ResultScreen() {
           ))}
           {!data?.subjectStats.length ? <Text style={{ color: colors.muted }}>No answer breakdown found.</Text> : null}
         </View>
+      </Card>
+
+      <Card className="mt-6">
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text className="text-xl font-extrabold" style={{ color: colors.ink }}>Review missed questions</Text>
+          <Text style={{ color: colors.danger, fontWeight: '800' }}>{wrongAnswers.length}</Text>
+        </View>
+        {(showAllWrong ? wrongAnswers : wrongAnswers.slice(0, 5)).map((answer: any, index: number) => {
+          const question = Array.isArray(answer.question) ? answer.question[0] : answer.question;
+          return <View key={answer.id ?? index} style={{ marginTop: space.md, borderTopWidth: 1, borderTopColor: colors.softLine, paddingTop: space.md }}><Text style={{ color: colors.text, fontWeight: '700' }}>{index + 1}. {question?.prompt ?? 'Question unavailable'}</Text><Text style={{ marginTop: 6, color: colors.success }}>Correct: {question?.correct_answer ?? 'Unavailable'}</Text><Text style={{ marginTop: 4, color: colors.textSecondary }}>{question?.explanation ?? 'Review this topic again in practice.'}</Text></View>;
+        })}
+        {wrongAnswers.length > 5 ? <Pressable onPress={() => setShowAllWrong(value => !value)} style={{ marginTop: space.md }}><Text style={{ color: colors.primary, fontWeight: '800' }}>{showAllWrong ? 'Show less' : 'Show all missed questions'}</Text></Pressable> : null}
+        {!wrongAnswers.length ? <Text style={{ marginTop: space.md, color: colors.success }}>Perfect score. Nothing to review.</Text> : null}
       </Card>
 
       <Pressable onPress={() => router.push('/dashboard')} className="mt-6 items-center">

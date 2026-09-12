@@ -29,30 +29,6 @@ export default function UpgradeScreen() {
   const [paymentRef, setPaymentRef] = useState<string | null>(null);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
 
-  async function activatePro() {
-    if (!user) {
-      Alert.alert('Login required', 'Sign in first to upgrade your plan.');
-      return;
-    }
-
-    if (plan.isPro) {
-      Alert.alert('Already Pro', 'Your Prepcore Pro plan is already active.');
-      return;
-    }
-
-    setProcessing(true);
-    try {
-      await subscribeUserToPro(user.id);
-      Alert.alert('Prepcore Pro activated', 'Your plan has been upgraded successfully.', [
-        { text: 'Go to dashboard', onPress: () => router.replace('/dashboard') }
-      ]);
-    } catch (err) {
-      Alert.alert('Upgrade failed', err instanceof Error ? err.message : 'Unable to activate Pro. Please try again.');
-    } finally {
-      setProcessing(false);
-    }
-  }
-
   async function startPayment() {
     if (!user) {
       Alert.alert('Login required', 'Sign in first to upgrade your plan.');
@@ -135,7 +111,6 @@ export default function UpgradeScreen() {
         <View className="space-y-4">
           <ActionButton className="mt-8" onPress={startPayment} disabled={processing || plan.isLoading || plan.isPro}>{processing ? 'Preparing payment...' : plan.isPro ? 'Prepcore Pro active' : 'Pay with card'}</ActionButton>
 
-          <ActionButton variant="outline" onPress={activatePro} disabled={processing || plan.isLoading || plan.isPro}>Activate Pro without payment (demo)</ActionButton>
         </View>
       )}
 
